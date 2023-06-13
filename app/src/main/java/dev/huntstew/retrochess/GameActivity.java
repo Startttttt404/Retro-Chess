@@ -3,12 +3,14 @@ package dev.huntstew.retrochess;
 import androidx.appcompat.app.AppCompatActivity;
 
 import android.graphics.ColorMatrixColorFilter;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 
+import java.util.List;
 import java.util.Optional;
 
 public class GameActivity extends AppCompatActivity implements View.OnClickListener {
@@ -85,6 +87,20 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
                     tile.setImageDrawable(null);
                 }
             }
+        }
+    }
+
+    public void setOverlay(List<String> tiles){
+        for(String tileId: tiles){
+            ImageView tile = findViewById(getResources().getIdentifier(tileId, "id", getPackageName()));
+            tile.setForeground(new ColorDrawable(getResources().getColor(com.google.android.material.R.color.material_dynamic_neutral20)));
+        }
+    }
+
+    public void clearOverlay(List<String> tiles){
+        for(String tileId: tiles){
+            ImageView tile = findViewById(getResources().getIdentifier(tileId, "id", getPackageName()));
+            tile.setForeground(null);
         }
     }
 }
