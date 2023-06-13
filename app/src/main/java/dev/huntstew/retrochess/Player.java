@@ -6,9 +6,9 @@ import java.util.List;
 import java.util.Optional;
 
 public class Player {
-    private List<String> pieces;
+    private List<Piece> pieces;
 
-    public Player(List<String> pieces){
+    public Player(List<Piece> pieces){
         this.pieces = pieces;
     }
 
@@ -24,7 +24,13 @@ public class Player {
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
-                if(!pieces.contains(game.getSelectedTile().get())){
+                boolean isValid = false;
+                for(Piece piece : pieces){
+                    if(piece.getTile().equals(game.getSelectedTile().get())){
+                        isValid = true;
+                    }
+                }
+                if(!isValid){
                     game.setSelectedTile(Optional.empty());
                 }
             }
@@ -50,7 +56,7 @@ public class Player {
         return new String[]{firstSquare, secondSquare};
     }
 
-    public List<String> getPieces() {
+    public List<Piece> getPieces() {
         return pieces;
     }
 }

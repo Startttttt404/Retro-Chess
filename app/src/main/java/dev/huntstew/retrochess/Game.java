@@ -28,44 +28,44 @@ public class Game implements Runnable{
             }
         }
 
-        board[0][0] = Optional.of(Piece.ROOK);
-        board[1][0] = Optional.of(Piece.KNIGHT);
-        board[2][0] = Optional.of(Piece.BISHOP);
-        board[3][0] = Optional.of(Piece.QUEEN);
-        board[4][0] = Optional.of(Piece.KING);
-        board[5][0] = Optional.of(Piece.BISHOP);
-        board[6][0] = Optional.of(Piece.KNIGHT);
-        board[7][0] = Optional.of(Piece.ROOK);
+        board[0][0] = Optional.of(new Piece(PieceType.ROOK, false, "A8"));
+        board[1][0] = Optional.of(new Piece(PieceType.KNIGHT, false, "B8"));
+        board[2][0] = Optional.of(new Piece(PieceType.BISHOP, false, "C8"));
+        board[3][0] = Optional.of(new Piece(PieceType.QUEEN, false, "D8"));
+        board[4][0] = Optional.of(new Piece(PieceType.KING, false, "E8"));
+        board[5][0] = Optional.of(new Piece(PieceType.BISHOP, false, "F8"));
+        board[6][0] = Optional.of(new Piece(PieceType.KNIGHT, false, "G8"));
+        board[7][0] = Optional.of(new Piece(PieceType.ROOK, false, "H8"));
 
         for(int i = 0; i < board.length; i++){
-            board[i][1] = Optional.of(Piece.PAWN);
+            board[i][1] = Optional.of(new Piece(PieceType.PAWN, false, String.valueOf((char)(i + 65)) + "7"));
         }
 
         for(int i = 0; i < board.length; i++){
-            board[i][6] = Optional.of(Piece.PAWN);
+            board[i][6] = Optional.of(new Piece(PieceType.PAWN, true, String.valueOf((char)(i + 65)) + "2"));
         }
 
-        board[0][7] = Optional.of(Piece.ROOK);
-        board[1][7] = Optional.of(Piece.KNIGHT);
-        board[2][7] = Optional.of(Piece.BISHOP);
-        board[3][7] = Optional.of(Piece.QUEEN);
-        board[4][7] = Optional.of(Piece.KING);
-        board[5][7] = Optional.of(Piece.BISHOP);
-        board[6][7] = Optional.of(Piece.KNIGHT);
-        board[7][7] = Optional.of(Piece.ROOK);
+        board[0][7] = Optional.of(new Piece(PieceType.ROOK, true, "A1"));
+        board[1][7] = Optional.of(new Piece(PieceType.KNIGHT, true, "B1"));
+        board[2][7] = Optional.of(new Piece(PieceType.BISHOP, true, "C1"));
+        board[3][7] = Optional.of(new Piece(PieceType.QUEEN, true, "D1"));
+        board[4][7] = Optional.of(new Piece(PieceType.KING, true, "E1"));
+        board[5][7] = Optional.of(new Piece(PieceType.BISHOP, true, "F1"));
+        board[6][7] = Optional.of(new Piece(PieceType.KNIGHT, true, "G1"));
+        board[7][7] = Optional.of(new Piece(PieceType.ROOK, true, "H1"));
 
-        ArrayList<String> player1Pieces = new ArrayList<>();
-        ArrayList<String> player2Pieces = new ArrayList<>();
+        ArrayList<Piece> player1Pieces = new ArrayList<>();
+        ArrayList<Piece> player2Pieces = new ArrayList<>();
 
         for(int i = 0; i < board.length; i++){
             for(int j = 0; j < 2; j++){
-                player2Pieces.add(String.valueOf((char)(i + 65)) + String.valueOf((char)(56 - j)));
+                player2Pieces.add(board[i][j].get());
             }
         }
 
         for(int i = 0; i < board.length; i++){
             for(int j = 6; j < board[i].length; j++){
-                player1Pieces.add(String.valueOf((char)(i + 65)) + String.valueOf((char)(56 - j)));
+                player1Pieces.add(board[i][j].get());
             }
         }
 
@@ -80,53 +80,50 @@ public class Game implements Runnable{
             String[] move;
             move = player1.getMove(this);
             makeMove(move);
-            player1.getPieces().remove(move[0]);
-            player1.getPieces().add(move[1]);
 
             new Handler(Looper.getMainLooper()).post(() -> activity.updateBoard());
 
             move = player2.getMove(this);
             makeMove(move);
-            player2.getPieces().remove(move[0]);
-            player2.getPieces().add(move[1]);
 
             new Handler(Looper.getMainLooper()).post(() -> activity.updateBoard());
         }
     }
 
-    public List<String> getValidMoves(String tileId){
-        Piece pieceType;
-        int col = tileId.charAt(0) - 65;
-        int row = 8 - (tileId.charAt(1) - 48);
-
-        if(board[col][row].isPresent()){
-            pieceType = board[col][row].get();
-        }
-        else{
-            return List.of();
-        }
-
-        switch(pieceType){
-            case PAWN:
-                return List.of(String.valueOf((char)(col + 65)) + String.valueOf((char)(56 - row)));
-            case KING:
-                break;
-            case QUEEN:
-                break;
-            case BISHOP:
-                break;
-            case KNIGHT:
-                break;
-            case ROOK:
-                break;
-        }
-    }
-
-    public boolean willNotCheckKing(String[] move){
-
-    }
+//    public List<String> getValidMoves(String tileId){
+//        Piece pieceType;
+//        int col = tileId.charAt(0) - 65;
+//        int row = 8 - (tileId.charAt(1) - 48);
+//
+//        if(board[col][row].isPresent()){
+//            pieceType = board[col][row].get();
+//        }
+//        else{
+//            return List.of();
+//        }
+//
+//        switch(pieceType){
+//            case PAWN:
+//                return List.of(String.valueOf((char)(col + 65)) + String.valueOf((char)(56 - row)));
+//            case KING:
+//                break;
+//            case QUEEN:
+//                break;
+//            case BISHOP:
+//                break;
+//            case KNIGHT:
+//                break;
+//            case ROOK:
+//                break;
+//        }
+//    }
+//
+//    public boolean willNotCheckKing(String[] move){
+//
+//    }
 
     public void makeMove(String[] move){
+        board[move[0].charAt(0) - 65][8 - (move[0].charAt(1) - 48)].get().setTile(move[1]);
         board[move[1].charAt(0) - 65][8 - (move[1].charAt(1) - 48)] = board[move[0].charAt(0) - 65][8 - (move[0].charAt(1) - 48)];
         board[move[0].charAt(0) - 65][8 - (move[0].charAt(1) - 48)] = Optional.empty();
     }

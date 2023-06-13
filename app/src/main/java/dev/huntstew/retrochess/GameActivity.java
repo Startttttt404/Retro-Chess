@@ -57,7 +57,7 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
                 ImageView tile = findViewById(getResources().getIdentifier(tileId, "id", getPackageName()));
                 tile.setColorFilter(null);
                 if(curTile.isPresent()){
-                    switch(curTile.get()){
+                    switch(curTile.get().getType()){
                         case PAWN:
                             tile.setImageResource(R.drawable.chess_plt45);
                             break;
@@ -77,7 +77,7 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
                             tile.setImageResource(R.drawable.chess_rlt45);
                             break;
                     }
-                    if(game.getPlayer2().getPieces().contains(tileId)){
+                    if(!curTile.get().isWhite()){
                         tile.setColorFilter(new ColorMatrixColorFilter(NEGATIVE));
                     }
                 }
