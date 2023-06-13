@@ -48,9 +48,7 @@ public class Player {
                 movesFromFirstSquare.add(move[1]);
             }
         }
-
-        new Handler(Looper.getMainLooper()).post(() -> game.getActivity().setOverlay(movesFromFirstSquare));
-
+        updateOverlay(game, movesFromFirstSquare, false);
         game.setSelectedTile(Optional.empty());
 
         synchronized (game) {
@@ -61,7 +59,7 @@ public class Player {
                     throw new RuntimeException(e);
                 }
                 if(game.getSelectedTile().get().equals(firstSquare)){
-                    new Handler(Looper.getMainLooper()).post(() -> game.getActivity().clearOverlay(movesFromFirstSquare));
+                    updateOverlay(game, movesFromFirstSquare, true);
                     game.setSelectedTile(Optional.empty());
                     return getMove(game, possibleMoves);
                 }
@@ -77,11 +75,25 @@ public class Player {
             }
         }
 
-        new Handler(Looper.getMainLooper()).post(() -> game.getActivity().clearOverlay(movesFromFirstSquare));
+        updateOverlay(game, movesFromFirstSquare, true);
         secondSquare = game.getSelectedTile().get();
         game.setSelectedTile(Optional.empty());
 
         return new String[]{firstSquare, secondSquare};
+    }
+
+    private void updateOverlay(Game game, List<String> movesFromFirstSquare, boolean clear){
+        game.setUpdatingBoard(true);
+        new Handler(Looper.getMainLooper()).post(() -> game.getActivity().updateOverlay(movesFromFirstSquare, clear));
+        synchronized (game) {
+            while(game.isUpdatingBoard()){
+                try {
+                    game.wait();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
     }
 
     public List<Piece> getPieces() {

@@ -12,6 +12,7 @@ import java.util.Stack;
 
 public class Game implements Runnable{
     private Optional<String> selectedTile;
+    private boolean updatingBoard;
     private Optional<Piece>[][] board;
 
     Stack<Optional<Piece>[][]> boardStack = new Stack<>();
@@ -80,55 +81,59 @@ public class Game implements Runnable{
 
     @Override
     public void run() {
-        while(winner.isEmpty()) {
+        while (winner.isEmpty()) {
             String[] move;
-            move = player1.getMove(this, getAllPossibleMoves(player1));
+
+            List<String[]> moves = getAllPossibleMoves(player1);
+            move = player1.getMove(this, moves);
             makeMove(move);
             board[move[1].charAt(0) - 65][8 - (move[1].charAt(1) - 48)].get().confirmMove();
 
-            new Handler(Looper.getMainLooper()).post(() -> activity.updateBoard());
+            updatingBoard = true;
+            synchronized (this) {
+                new Handler(Looper.getMainLooper()).post(() -> activity.updateBoard());
+                while (updatingBoard) {
+                    try {
+                        wait();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
 
-            move = player2.getMove(this, getAllPossibleMoves(player2));
+            moves = getAllPossibleMoves(player2);
+            move = player2.getMove(this, moves);
             makeMove(move);
             board[move[1].charAt(0) - 65][8 - (move[1].charAt(1) - 48)].get().confirmMove();
 
-            new Handler(Looper.getMainLooper()).post(() -> activity.updateBoard());
+            updatingBoard = true;
+            synchronized (this) {
+                new Handler(Looper.getMainLooper()).post(() -> activity.updateBoard());
+                while (updatingBoard) {
+                    try {
+                        wait();
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
         }
     }
 
     public List<String[]> getAllPossibleMoves(Player player){
         List<String[]> moves = new ArrayList<>();
-        List<String[]> opponentMoves = new ArrayList<>();
-        String kingTileWhite = "";
-        String kingTileBlack = "";
+        String kingTile = "";
 
-        for(Piece piece: player1.getPieces()){
+        for(Piece piece: player.getPieces()){
             if(piece.getType() == PieceType.KING){
-                kingTileWhite = piece.getTile();
+                kingTile = piece.getTile();
             }
             for(String newTile: getPossibleMoves(piece.getTile())){
                 moves.add(new String[]{piece.getTile(), newTile});
             }
         }
-        for(Piece piece: player2.getPieces()){
-            if(piece.getType() == PieceType.KING){
-                kingTileBlack = piece.getTile();
-            }
-            for(String newTile: getPossibleMoves(piece.getTile())){
-                opponentMoves.add(new String[]{piece.getTile(), newTile});
-            }
-        }
 
-        if(player.equals(player2)){
-            List<String[]> temp = moves;
-            moves = opponentMoves;
-            opponentMoves = temp;
-            removeKingCheckingMoves(moves, opponentMoves, kingTileBlack);
-        }
-        else{
-            removeKingCheckingMoves(moves, opponentMoves, kingTileWhite);
-        }
-
+        removeKingCheckingMoves(moves, kingTile);
         return moves;
     }
     public List<String> getPossibleMoves(String tileId){
@@ -214,21 +219,48 @@ public class Game implements Runnable{
         }
     }
 
-    public void removeKingCheckingMoves(List<String[]> moves, List<String[]> opponentMoves, String kingTile){
-        for(String[] move: moves) {
-            if (makeMove(move)) {
-                for (String[] opponentMove : opponentMoves) {
-                    if (opponentMove[1].equals(kingTile)) {
-                        List<String> newPossibleMoves = getPossibleMoves(opponentMove[0]);
-                        for(String newPossibleMove: newPossibleMoves) {
-                            if (opponentMove[1].equals(newPossibleMove)) {
-                                moves.remove(move);
-                            }
+    public void removeKingCheckingMoves(List<String[]> moves, String kingTile){
+        for(int i = 0; i < moves.size(); i++) {
+            if (makeMove(moves.get(i))) {
+                if(moves.get(i)[0].equals(kingTile)){
+                    List<String> opponentMoves = new ArrayList<>();
+                    if (board[moves.get(i)[1].charAt(0) - 65][8 - (moves.get(i)[1].charAt(1) - 48)].get().isWhite()) {
+                        for (Piece piece : player2.getPieces()) {
+                            opponentMoves.addAll(getPossibleMoves(piece.getTile()));
+                        }
+                    } else {
+                        for (Piece piece : player1.getPieces()) {
+                            opponentMoves.addAll(getPossibleMoves(piece.getTile()));
+                        }
+                    }
+
+                    for (String possibleCheck : opponentMoves) {
+                        if (possibleCheck.equals(moves.get(i)[1])) {
+                            moves.remove(moves.get(i));
                         }
                     }
                 }
+                else {
+                    List<String> opponentMoves = new ArrayList<>();
+                    if (board[kingTile.charAt(0) - 65][8 - (kingTile.charAt(1) - 48)].get().isWhite()) {
+                        for (Piece piece : player2.getPieces()) {
+                            opponentMoves.addAll(getPossibleMoves(piece.getTile()));
+                        }
+                    } else {
+                        for (Piece piece : player1.getPieces()) {
+                            opponentMoves.addAll(getPossibleMoves(piece.getTile()));
+                        }
+                    }
+
+                    for (String possibleCheck : opponentMoves) {
+                        if (possibleCheck.equals(kingTile)) {
+                            moves.remove(moves.get(i));
+                        }
+                    }
+                }
+
                 board = boardStack.pop();
-                board[move[0].charAt(0) - 65][8 - (move[0].charAt(1) - 48)].get().setTile(move[0]);
+                board[moves.get(i)[0].charAt(0) - 65][8 - (moves.get(i)[0].charAt(1) - 48)].get().setTile(moves.get(i)[0]);
             }
         }
     }
@@ -242,11 +274,17 @@ public class Game implements Runnable{
             moves.add(String.valueOf((char)(col + counter + 65)) + String.valueOf((char)(56 - row - counter)));
             counter++;
         }
+        if(col + counter < board.length && row + counter < board.length && board[col + counter][row + counter].isPresent() && (board[col][row].get().isWhite() ^ board[col + counter][row + counter].get().isWhite())){
+            moves.add(String.valueOf((char)(col + counter + 65)) + String.valueOf((char)(56 - row - counter)));
+        }
 
         counter = 1;
         while(col + counter < board.length && row - counter >= 0 && board[col + counter][row - counter].isEmpty()){
             moves.add(String.valueOf((char)(col + counter + 65)) + String.valueOf((char)(56 - row + counter)));
             counter++;
+        }
+        if(col + counter < board.length && row - counter >= 0 && board[col + counter][row - counter].isPresent() && (board[col][row].get().isWhite() ^ board[col + counter][row - counter].get().isWhite())){
+            moves.add(String.valueOf((char)(col + counter + 65)) + String.valueOf((char)(56 - row + counter)));
         }
 
         counter = 1;
@@ -254,11 +292,18 @@ public class Game implements Runnable{
             moves.add(String.valueOf((char)(col - counter + 65)) + String.valueOf((char)(56 - row - counter)));
             counter++;
         }
+        if(col - counter >= 0 && row + counter < board.length && board[col - counter][row + counter].isPresent() && (board[col][row].get().isWhite() ^ board[col - counter][row + counter].get().isWhite())){
+            moves.add(String.valueOf((char)(col - counter + 65)) + String.valueOf((char)(56 - row - counter)));
+        }
+
 
         counter = 1;
         while(col - counter >= 0 && row - counter >= 0 && board[col - counter][row - counter].isEmpty()){
             moves.add(String.valueOf((char)(col - counter + 65)) + String.valueOf((char)(56 - row + counter)));
             counter++;
+        }
+        if(col - counter >= 0 && row - counter >= 0 && board[col - counter][row - counter].isPresent() && (board[col][row].get().isWhite() ^ board[col - counter][row - counter].get().isWhite())){
+            moves.add(String.valueOf((char)(col - counter + 65)) + String.valueOf((char)(56 - row + counter)));
         }
     }
 
@@ -337,5 +382,13 @@ public class Game implements Runnable{
 
     public GameActivity getActivity() {
         return activity;
+    }
+
+    public boolean isUpdatingBoard() {
+        return updatingBoard;
+    }
+
+    public void setUpdatingBoard(boolean updatingBoard) {
+        this.updatingBoard = updatingBoard;
     }
 }

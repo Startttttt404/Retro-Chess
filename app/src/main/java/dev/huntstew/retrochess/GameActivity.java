@@ -23,6 +23,7 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
 
     private Game game;
 
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -51,56 +52,64 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     public void updateBoard(){
-        Optional<Piece>[][] board = game.getBoard();
-        for(int i = 0; i < board.length; i++){
-            for(int j = 0; j < board[i].length; j++){
-                Optional<Piece> curTile = board[i][j];
-                String tileId = String.valueOf((char)(i + 65)) + String.valueOf((char)(56 - j));
-                ImageView tile = findViewById(getResources().getIdentifier(tileId, "id", getPackageName()));
-                tile.setColorFilter(null);
-                if(curTile.isPresent()){
-                    switch(curTile.get().getType()){
-                        case PAWN:
-                            tile.setImageResource(R.drawable.chess_plt45);
-                            break;
-                        case KING:
-                            tile.setImageResource(R.drawable.chess_klt45);
-                            break;
-                        case QUEEN:
-                            tile.setImageResource(R.drawable.chess_qlt45);
-                            break;
-                        case BISHOP:
-                            tile.setImageResource(R.drawable.chess_blt45);
-                            break;
-                        case KNIGHT:
-                            tile.setImageResource(R.drawable.chess_nlt45);
-                            break;
-                        case ROOK:
-                            tile.setImageResource(R.drawable.chess_rlt45);
-                            break;
+        synchronized (game) {
+            Optional<Piece>[][] board = game.getBoard();
+            for (int i = 0; i < board.length; i++) {
+                for (int j = 0; j < board[i].length; j++) {
+                    Optional<Piece> curTile = board[i][j];
+                    String tileId = String.valueOf((char) (i + 65)) + String.valueOf((char) (56 - j));
+                    ImageView tile = findViewById(getResources().getIdentifier(tileId, "id", getPackageName()));
+                    tile.setColorFilter(null);
+                    if (curTile.isPresent()) {
+                        switch (curTile.get().getType()) {
+                            case PAWN:
+                                tile.setImageResource(R.drawable.chess_plt45);
+                                break;
+                            case KING:
+                                tile.setImageResource(R.drawable.chess_klt45);
+                                break;
+                            case QUEEN:
+                                tile.setImageResource(R.drawable.chess_qlt45);
+                                break;
+                            case BISHOP:
+                                tile.setImageResource(R.drawable.chess_blt45);
+                                break;
+                            case KNIGHT:
+                                tile.setImageResource(R.drawable.chess_nlt45);
+                                break;
+                            case ROOK:
+                                tile.setImageResource(R.drawable.chess_rlt45);
+                                break;
+                        }
+                        if (!curTile.get().isWhite()) {
+                            tile.setColorFilter(new ColorMatrixColorFilter(NEGATIVE));
+                        }
+                    } else {
+                        tile.setImageDrawable(null);
                     }
-                    if(!curTile.get().isWhite()){
-                        tile.setColorFilter(new ColorMatrixColorFilter(NEGATIVE));
-                    }
-                }
-                else{
-                    tile.setImageDrawable(null);
                 }
             }
+            game.setUpdatingBoard(false);
+            game.notify();
         }
     }
 
-    public void setOverlay(List<String> tiles){
-        for(String tileId: tiles){
-            ImageView tile = findViewById(getResources().getIdentifier(tileId, "id", getPackageName()));
-            tile.setForeground(new ColorDrawable(getResources().getColor(com.google.android.material.R.color.material_dynamic_neutral20)));
-        }
-    }
-
-    public void clearOverlay(List<String> tiles){
-        for(String tileId: tiles){
-            ImageView tile = findViewById(getResources().getIdentifier(tileId, "id", getPackageName()));
-            tile.setForeground(null);
+    public void updateOverlay(List<String> tiles, boolean clear){
+        synchronized (game) {
+            if(!clear){
+                for (String tileId : tiles) {
+                    ImageView tile = findViewById(getResources().getIdentifier(tileId, "id", getPackageName()));
+                    tile.setForeground(new ColorDrawable(getResources().getColor(com.google.android.material.R.color.material_dynamic_neutral20)));
+                }
+            }
+            else{
+                for (String tileId : tiles) {
+                    ImageView tile = findViewById(getResources().getIdentifier(tileId, "id", getPackageName()));
+                    tile.setForeground(null);
+                }
+            }
+            game.setUpdatingBoard(false);
+            game.notify();
         }
     }
 }
