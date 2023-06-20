@@ -9,9 +9,7 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TableLayout;
 import android.widget.TableRow;
-import android.widget.Toast;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,9 +21,9 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
             0,     0,     0, 1.0f,   0  // alpha
     };
 
-    private final List<ImageView> board = new ArrayList<>();
+    private final Game game = new Game(this, new Player(), new Player());
 
-    private final Game game = new Game(this, new Player(), new Player());;
+    private final ImageView[][] viewBoard = new ImageView[game.getBoard().length][game.getBoard().length];
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,7 +36,7 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
             for(int j = 0; j < row.getChildCount(); j++){
                 ImageView tile = (ImageView) row.getChildAt(j);
                 tile.setOnClickListener(this);
-                board.add(tile);
+                viewBoard[i][j] = tile;
             }
         }
 
@@ -61,8 +59,7 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
             for (int col = 0; col < board.length; col++) {
                 for (int row = 0; row < board[col].length; row++) {
                     Optional<Piece> curTile = game.getPiece(col, row);
-                    String tileId = String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row));
-                    ImageView tile = findViewById(getResources().getIdentifier(tileId, "id", getPackageName()));
+                    ImageView tile = viewBoard[row][col];
                     tile.setColorFilter(null);
                     if (curTile.isPresent()) {
                         switch (curTile.get().getType()) {
@@ -102,18 +99,22 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
         synchronized (game) {
             if(!clear){
                 for (String tileId : tiles) {
-                    ImageView tile = findViewById(getResources().getIdentifier(tileId, "id", getPackageName()));
+                    ImageView tile = getTileFromId(tileId);
                     tile.setForeground(new ColorDrawable(getResources().getColor(com.google.android.material.R.color.material_dynamic_neutral20)));
                 }
             }
             else{
                 for (String tileId : tiles) {
-                    ImageView tile = findViewById(getResources().getIdentifier(tileId, "id", getPackageName()));
+                    ImageView tile = getTileFromId(tileId);
                     tile.setForeground(null);
                 }
             }
             game.setUpdatingBoard(false);
             game.notify();
         }
+    }
+
+    public ImageView getTileFromId(String tileId){
+        return viewBoard[8 - (tileId.charAt(1) - 48)][tileId.charAt(0) - 65];
     }
 }
