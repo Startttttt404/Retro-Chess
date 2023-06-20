@@ -62,12 +62,12 @@ public class Game implements Runnable{
         board[7][0] = new Piece(PieceType.ROOK, false, "H8");
 
         for(int i = 0; i < board.length; i++){
-            board[i][1] = new Piece(PieceType.PAWN, false, String.valueOf((char)(i + 65)) + "7");
+            board[i][1] = new Piece(PieceType.PAWN, false, (char)(i + 'A') + "7");
         }
 
         // White pieces A2-H1
         for(int i = 0; i < board.length; i++){
-            board[i][6] = new Piece(PieceType.PAWN, true, String.valueOf((char)(i + 65)) + "2");
+            board[i][6] = new Piece(PieceType.PAWN, true, (char)(i + 'A') + "2");
         }
 
         board[0][7] = new Piece(PieceType.ROOK, true, "A1");
@@ -186,8 +186,8 @@ public class Game implements Runnable{
      */
     public Set<Move> getPossibleMoves(String tileId){
         // Translates tileID to integer values for board
-        int col = tileId.charAt(0) - 65;
-        int row = 8 - (tileId.charAt(1) - 48);
+        int col = tileId.charAt(0) - 'A';
+        int row = 8 - (tileId.charAt(1) - '0');
 
         Set<Move> moves = new HashSet<>();
         Optional<Piece> piece = getPiece(col, row);
@@ -238,6 +238,16 @@ public class Game implements Runnable{
     }
 
     /**
+     * Checks whether the given column and row lies within board bounds
+     * @param col the column of the tile
+     * @param row the row of the tile
+     * @return true if the tile is in bounds, false otherwise
+     */
+    public boolean tileIsInBounds(int col, int row){
+        return row >= 0 && row < board.length && col >=0 && col < board.length;
+    }
+
+    /**
      * Gets a set of Move values of all tiles according to pawn movement from the given column and row
      * Only functions if there is a piece on the given tile
      * @param col the column of the tile to check
@@ -252,29 +262,29 @@ public class Game implements Runnable{
         if(piece.isPresent()) {
             // This determines whether to check up or down on the board
             int sign = 1;
-            if (!piece.get().isWhite()) {
+            if (piece.get().isWhite()) {
                 sign *= -1;
             }
 
             // Non-capture, normal movement
-            if (row - sign < board.length && row - sign >= 0 && getPiece(col, row - sign).isEmpty()) {
-                tiles.add(new Move(String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row)), String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row + sign)), MoveType.NORMAL));
+            if (tileIsInBounds(col, row + sign) && getPiece(col, row + sign).isEmpty()) {
+                tiles.add(new Move(col, row, col, row + sign, MoveType.NORMAL));
                 if (!piece.get().hasMoved()) {
-                    if (row - 2 * sign < board.length && row - 2 * sign >= 0 && getPiece(col, row - 2 * sign).isEmpty()) {
-                        tiles.add(new Move(String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row)), String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row + 2 * sign)), MoveType.NORMAL));
+                    if (tileIsInBounds(col, row + 2 * sign) && getPiece(col, row + 2 * sign).isEmpty()) {
+                        tiles.add(new Move(col, row, col, row + 2 * sign, MoveType.NORMAL));
                     }
                 }
             }
 
             // Capture movement
-            if (col + 1 < board.length && row - sign < board.length && row - sign >= 0 && getPiece(col + 1, row - sign).isPresent()){
-                if(getPiece(col + 1, row - sign).get().isWhite() ^ piece.get().isWhite()){
-                    tiles.add(new Move(String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row)),String.valueOf((char) (col + 1 + 65)) + String.valueOf((char) (56 - row + sign)), MoveType.NORMAL));
+            if (tileIsInBounds(col + 1, row + sign) && getPiece(col + 1, row + sign).isPresent()){
+                if(getPiece(col + 1, row + sign).get().isWhite() ^ piece.get().isWhite()){
+                    tiles.add(new Move(col, row, col + 1, row + sign, MoveType.NORMAL));
                 }
             }
-            if (col - 1 >= 0 && row - sign < board.length && row - sign >= 0 && getPiece(col - 1, row - sign).isPresent()){
-                if(getPiece(col - 1, row - sign).get().isWhite() ^ piece.get().isWhite()){
-                    tiles.add(new Move(String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row)),String.valueOf((char) (col - 1 + 65)) + String.valueOf((char) (56 - row + sign)), MoveType.NORMAL));
+            if (tileIsInBounds(col - 1, row + sign) && getPiece(col - 1, row + sign).isPresent()){
+                if(getPiece(col - 1, row + sign).get().isWhite() ^ piece.get().isWhite()){
+                    tiles.add(new Move(col, row, col - 1, row + sign, MoveType.NORMAL));
                 }
             }
         }
@@ -303,15 +313,15 @@ public class Game implements Runnable{
             for (int directionX : leftAndRight) {
                 for (int directionY : upAndDown) {
                     int counter = 1;
-                    while (col + counter * directionX >= 0 && col + counter * directionX < board.length && row + counter * directionY >= 0 && row + counter * directionY < board.length && getPiece(col + counter * directionX, row + counter * directionY).isEmpty()) {
-                        tiles.add(new Move(String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row)), String.valueOf((char) (col + counter * directionX + 65)) + String.valueOf((char) (56 - row - counter * directionY)), MoveType.NORMAL));       /* Subtracts counter, as board ID is flipped orientation */
+                    while (tileIsInBounds(col + counter * directionX, row + counter * directionY) && getPiece(col + counter * directionX, row + counter * directionY).isEmpty()) {
+                        tiles.add(new Move(col, row, col + counter * directionX, row + counter * directionY, MoveType.NORMAL));       /* Subtracts counter, as board ID is flipped orientation */
                         counter++;
                     }
 
                     // Checking if the final tile in each direction is enemy
-                    if (col + counter * directionX >= 0 && col + counter * directionX < board.length && row + counter * directionY >= 0 && row + counter * directionY < board.length && getPiece(col + counter * directionX, row + counter * directionY).isPresent()) {
+                    if (tileIsInBounds(col + counter * directionX, row + counter * directionY) && getPiece(col + counter * directionX, row + counter * directionY).isPresent()) {
                         if (getPiece(col + counter * directionX, row + counter * directionY).get().isWhite() ^ piece.get().isWhite()) {
-                            tiles.add(new Move(String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row)), String.valueOf((char) (col + counter * directionX + 65)) + String.valueOf((char) (56 - row - counter * directionY)), MoveType.NORMAL));
+                            tiles.add(new Move(col, row, col + counter * directionX, row + counter * directionY, MoveType.NORMAL));
                         }
                     }
                 }
@@ -339,29 +349,29 @@ public class Game implements Runnable{
             for (int direction : negativeAndPositiveDirections) {
                 // Left and right
                 int counter = 1;
-                while (col + counter * direction >= 0 && col + counter * direction < board.length && getPiece(col + counter * direction, row).isEmpty()) {
-                    tiles.add(new Move(String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row)),String.valueOf((char) (col + counter * direction + 65)) + String.valueOf((char) (56 - row)), MoveType.NORMAL));
+                while (tileIsInBounds(col + counter * direction, row) && getPiece(col + counter * direction, row).isEmpty()) {
+                    tiles.add(new Move(col, row, col + counter * direction, row, MoveType.NORMAL));
                     counter++;
                 }
 
                 // Capture
-                if (col + counter * direction >= 0 && col + counter * direction < board.length && getPiece(col + counter * direction, row).isPresent()) {
+                if (tileIsInBounds(col + counter * direction, row) && getPiece(col + counter * direction, row).isPresent()) {
                     if (getPiece(col + counter * direction, row).get().isWhite() ^ piece.get().isWhite()) {
-                        tiles.add(new Move(String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row)),String.valueOf((char) (col + counter * direction + 65)) + String.valueOf((char) (56 - row)), MoveType.NORMAL));
+                        tiles.add(new Move(col, row, col + counter * direction, row, MoveType.NORMAL));
                     }
                 }
 
                 // Up and down
                 counter = 1;
-                while (row + counter * direction >= 0 && row + counter * direction < board.length && getPiece(col, row + counter * direction).isEmpty()) {
-                    tiles.add(new Move(String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row)),String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row - counter * direction)), MoveType.NORMAL));
+                while (tileIsInBounds(col, row + counter * direction) && getPiece(col, row + counter * direction).isEmpty()) {
+                    tiles.add(new Move(col, row, col, row + counter * direction, MoveType.NORMAL));
                     counter++;
                 }
 
                 // Capture
-                if (row + counter * direction >= 0 && row + counter * direction < board.length && getPiece(col, row + counter * direction).isPresent()) {
+                if (tileIsInBounds(col, row + counter * direction) && getPiece(col, row + counter * direction).isPresent()) {
                     if (getPiece(col, row + counter * direction).get().isWhite() ^ piece.get().isWhite()) {
-                        tiles.add(new Move(String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row)),String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row - counter * direction)), MoveType.NORMAL));
+                        tiles.add(new Move(col, row, col, row + counter * direction, MoveType.NORMAL));
                     }
                 }
             }
@@ -391,22 +401,22 @@ public class Game implements Runnable{
             for (int directionX : leftAndRight) {
                 for (int directionY : upAndDown) {
                     // Movement
-                    if (col + 2 * directionX >= 0 && col + 2 * directionX < board.length && row + directionY >= 0 && row + directionY < board.length && getPiece(col + 2 * directionX, row + directionY).isEmpty()) {
-                        tiles.add(new Move(String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row)),String.valueOf((char) (col + 2 * directionX + 65)) + String.valueOf((char) (56 - row - directionY)), MoveType.NORMAL));
+                    if (tileIsInBounds(col + 2 * directionX, row + directionY) && getPiece(col + 2 * directionX, row + directionY).isEmpty()) {
+                        tiles.add(new Move(col, row, col + 2 * directionX, row + directionY, MoveType.NORMAL));
                     }
-                    if (col + directionX >= 0 && col + directionX < board.length && row + 2 * directionY >= 0 && row + 2 * directionY < board.length && getPiece(col + directionX, row + 2 * directionY).isEmpty()) {
-                        tiles.add(new Move(String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row)),String.valueOf((char) (col + directionX + 65)) + String.valueOf((char) (56 - row - 2 * directionY)), MoveType.NORMAL));
+                    if (tileIsInBounds(col + directionX, row + 2 * directionY) && getPiece(col + directionX, row + 2 * directionY).isEmpty()) {
+                        tiles.add(new Move(col, row, col + directionX, row + 2 * directionY, MoveType.NORMAL));
                     }
 
                     // Captures
-                    if (col + 2 * directionX >= 0 && col + 2 * directionX < board.length && row + directionY >= 0 && row + directionY < board.length && getPiece(col + 2 * directionX, row + directionY).isPresent()) {
+                    if (tileIsInBounds(col + 2 * directionX, row + directionY) && getPiece(col + 2 * directionX, row + directionY).isPresent()) {
                         if(getPiece(col + 2 * directionX, row + directionY).get().isWhite() ^ piece.get().isWhite()){
-                            tiles.add(new Move(String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row)),String.valueOf((char) (col + 2 * directionX + 65)) + String.valueOf((char) (56 - row - directionY)), MoveType.NORMAL));
+                            tiles.add(new Move(col, row, col + 2 * directionX, row + directionY, MoveType.NORMAL));
                         }
                     }
-                    if (col + directionX >= 0 && col + directionX < board.length && row + 2 * directionY >= 0 && row + 2 * directionY < board.length && getPiece(col + directionX, row + 2 * directionY).isPresent()) {
+                    if (tileIsInBounds(col + directionX, row + 2 * directionY) && getPiece(col + directionX, row + 2 * directionY).isPresent()) {
                         if (getPiece(col + directionX, row + 2 * directionY).get().isWhite() ^ piece.get().isWhite()) {
-                            tiles.add(new Move(String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row)), String.valueOf((char) (col + directionX + 65)) + String.valueOf((char) (56 - row - 2 * directionY)), MoveType.NORMAL));
+                            tiles.add(new Move(col, row, col + directionX, row + 2 * directionY, MoveType.NORMAL));
                         }
                     }
                 }
@@ -436,12 +446,12 @@ public class Game implements Runnable{
             // All directions on both y and x axis
             for (int directionX : leftAndRight) {
                 for (int directionY : upAndDown) {
-                    if (col + directionX >= 0 && col + directionX < board.length && row + directionY >= 0 && row + directionY < board.length && getPiece(col + directionX, row + directionY).isEmpty()) {
-                        tiles.add(new Move(String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row)),String.valueOf((char) (col + directionX + 65)) + String.valueOf((char) (56 - row - directionY)), MoveType.NORMAL));
+                    if (tileIsInBounds(col + directionX, row + directionY) && getPiece(col + directionX, row + directionY).isEmpty()) {
+                        tiles.add(new Move(col, row,col + directionX, row + directionY, MoveType.NORMAL));
                     }
-                    if (col + directionX >= 0 && col + directionX < board.length && row + directionY >= 0 && row + directionY < board.length && getPiece(col + directionX, row + directionY).isPresent()) {
+                    if (tileIsInBounds(col + directionX, row + directionY) && getPiece(col + directionX, row + directionY).isPresent()) {
                         if (getPiece(col + directionX, row + directionY).get().isWhite() ^ piece.get().isWhite()) {
-                            tiles.add(new Move(String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row)),String.valueOf((char) (col + directionX + 65)) + String.valueOf((char) (56 - row - directionY)), MoveType.NORMAL));
+                            tiles.add(new Move(col, row, col + directionX, row + directionY, MoveType.NORMAL));
                         }
                     }
                 }
@@ -456,7 +466,7 @@ public class Game implements Runnable{
      * @param move the move to use as parameters
      */
     public void makeMove(Move move){
-        Optional<Piece> piece = getPiece(move.getLocation().charAt(0) - 65, 8 - (move.getLocation().charAt(1) - 48));
+        Optional<Piece> piece = getPiece(move.getLocation().charAt(0) - 'A', 8 - (move.getLocation().charAt(1) - '0'));
 
         if(piece.isPresent()){
             boardStack.push(board);
@@ -515,14 +525,28 @@ public class Game implements Runnable{
         }
     }
 
+    /**
+     * Sets the winner, ought to be called only once
+     * @param winner the winner of the game
+     */
     public void setWinner(Player winner) {
         this.winner = winner;
     }
 
+    /**
+     * Sets the board to updating to prevent game advancement during ui updates
+     * @param updatingBoard whether the board is updating or not
+     */
     public void setUpdatingBoard(boolean updatingBoard) {
         this.updatingBoard = updatingBoard;
     }
 
+    /**
+     * Gets the piece located on a tile specified by row and column
+     * @param col the column of the tile
+     * @param row the row of the tile
+     * @return the piece at the tile, if it exists
+     */
     public Optional<Piece> getPiece(int col, int row){
         Piece piece = board[col][row];
         if(piece.getType() == PieceType.DUMMY){
@@ -531,6 +555,10 @@ public class Game implements Runnable{
         return Optional.of(piece);
     }
 
+    /**
+     * Gets the tileId that has most recently been selected by the user
+     * @return the tileId of the selected tile, if it exists
+     */
     public Optional<String> getSelectedTile() {
         if(selectedTile.equals("None")){
             return Optional.empty();
@@ -538,10 +566,18 @@ public class Game implements Runnable{
         return Optional.of(selectedTile);
     }
 
+    /**
+     * Gets the board
+     * @return the board of pieces
+     */
     public Piece[][] getBoard() {
         return board;
     }
 
+    /**
+     * Gets the winner
+     * @return the winner, if it has been declared
+     */
     public Optional<Player> getWinner() {
         if(winner.isDummy()){
             return Optional.empty();
@@ -549,10 +585,18 @@ public class Game implements Runnable{
         return Optional.of(winner);
     }
 
+    /**
+     * Gets the UI activity
+     * @return the activity
+     */
     public GameActivity getActivity() {
         return activity;
     }
 
+    /**
+     * Checks if the board is currently updating
+     * @return true if the board is updating, false otherwise
+     */
     public boolean isUpdatingBoard() {
         return updatingBoard;
     }

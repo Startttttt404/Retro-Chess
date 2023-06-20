@@ -13,6 +13,12 @@ public class Move {
         this.type = type;
     }
 
+    public Move(int col1, int row1, int col2, int row2, MoveType type){
+        this.location = (char) (col1 + 'A') + "" + (char)((8 - row1) + '0');
+        this.destination = (char) (col2 + 'A') + "" + (char)((8 - row2) + '0');
+        this.type = type;
+    }
+
     public MoveType getType() {
         return type;
     }
