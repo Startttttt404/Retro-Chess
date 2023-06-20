@@ -1,9 +1,10 @@
 package dev.huntstew.retrochess;
 
+import java.util.Optional;
+
 public class Piece{
     private final PieceType type;
     private final boolean isWhite;
-
     private boolean hasMoved;
     private String tile;
 
@@ -34,7 +35,12 @@ public class Piece{
         return hasMoved;
     }
 
-    public void confirmMove(){
+    public void confirmMove(Player opponent, String destination){
+        for(int i = 0; i < opponent.getPieces().size(); i++){
+            if(opponent.getPieces().get(i).getTile().equals(destination)){
+                opponent.getPieces().remove(opponent.getPieces().get(i));
+            }
+        }
         hasMoved = true;
     }
 }

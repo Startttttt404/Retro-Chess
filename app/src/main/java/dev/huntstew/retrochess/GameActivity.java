@@ -9,7 +9,9 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TableLayout;
 import android.widget.TableRow;
+import android.widget.Toast;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,8 +23,9 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
             0,     0,     0, 1.0f,   0  // alpha
     };
 
-    private Game game;
+    private final List<ImageView> board = new ArrayList<>();
 
+    private final Game game = new Game(this, new Player(), new Player());;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,11 +36,12 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
         for(int i = 0; i < boardLayout.getChildCount(); i++){
             TableRow row = (TableRow)boardLayout.getChildAt(i);
             for(int j = 0; j < row.getChildCount(); j++){
-                row.getChildAt(j).setOnClickListener(this);
+                ImageView tile = (ImageView) row.getChildAt(j);
+                tile.setOnClickListener(this);
+                board.add(tile);
             }
         }
 
-        game = new Game(this);
         updateBoard();
         Thread gameThread = new Thread(game);
         gameThread.start();
@@ -46,18 +50,18 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onClick(View v) {
         synchronized (game){
-            game.setSelectedTile(Optional.of(getResources().getResourceEntryName(v.getId())));
+            game.setSelectedTile(getResources().getResourceEntryName(v.getId()));
             game.notify();
         }
     }
 
     public void updateBoard(){
         synchronized (game) {
-            Optional<Piece>[][] board = game.getBoard();
-            for (int i = 0; i < board.length; i++) {
-                for (int j = 0; j < board[i].length; j++) {
-                    Optional<Piece> curTile = board[i][j];
-                    String tileId = String.valueOf((char) (i + 65)) + String.valueOf((char) (56 - j));
+            Piece[][] board = game.getBoard();
+            for (int col = 0; col < board.length; col++) {
+                for (int row = 0; row < board[col].length; row++) {
+                    Optional<Piece> curTile = game.getPiece(col, row);
+                    String tileId = String.valueOf((char) (col + 65)) + String.valueOf((char) (56 - row));
                     ImageView tile = findViewById(getResources().getIdentifier(tileId, "id", getPackageName()));
                     tile.setColorFilter(null);
                     if (curTile.isPresent()) {
