@@ -1,7 +1,5 @@
 package dev.huntstew.retrochess;
 
-import java.util.Optional;
-
 public class Piece{
     private final PieceType type;
     private final boolean isWhite;

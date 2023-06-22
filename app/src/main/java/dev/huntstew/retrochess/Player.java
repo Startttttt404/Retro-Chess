@@ -1,17 +1,13 @@
 package dev.huntstew.retrochess;
 
-import android.graphics.Path;
-import android.os.Looper;
-import android.util.Log;
-
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.BrokenBarrierException;
 
 public class Player {
     private List<Piece> pieces;
-    private boolean dummy;
+    private final boolean dummy;
 
     public Player(){
         this.dummy = false;
@@ -36,23 +32,25 @@ public class Player {
 
         Move finalMove = null;
 
-        synchronized (game) {
-            while (game.getSelectedTile().isEmpty()) {
-                try {
-                    game.wait();
-
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
+        game.setSelectedTile(null);
+        while(game.getSelectedTile().isEmpty()) {
+            game.setSelectedTile(null);
+            game.getMoveBarrier().reset();
+            try {
+                game.getMoveBarrier().await();
                 boolean isValid = false;
-                for(Move move: possibleMoves){
-                    if(move.getLocation().equals(game.getSelectedTile().get())){
+                for (Move move : possibleMoves) {
+                    if (move.getLocation().equals(game.getSelectedTile().get())) {
                         isValid = true;
                     }
                 }
-                if(!isValid){
+                if (!isValid) {
                     game.setSelectedTile(null);
                 }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            } catch (BrokenBarrierException e) {
+                game.getUpdateBarrier().reset();
             }
         }
 
@@ -65,35 +63,37 @@ public class Player {
             }
         }
         updateOverlay(game, movesFromFirstSquare, false);
-        game.setSelectedTile(null);
 
-        synchronized (game) {
-            while (game.getSelectedTile().isEmpty()) {
-                try {
-                    game.wait();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                if(game.getSelectedTile().get().equals(firstSquare)){
+        game.setSelectedTile(null);
+        while(game.getSelectedTile().isEmpty()) {
+            game.setSelectedTile(null);
+            game.getMoveBarrier().reset();
+            try {
+                game.getMoveBarrier().await();
+                if (game.getSelectedTile().get().equals(firstSquare)) {
                     updateOverlay(game, movesFromFirstSquare, true);
-                    game.setSelectedTile(null);
                     return getMove(game, possibleMoves);
                 }
                 boolean isValid = false;
-                for(Move move: possibleMoves){
-                    if(move.getLocation().equals(firstSquare) && move.getDestination().equals(game.getSelectedTile().get())){
+                for (Move move : possibleMoves) {
+                    if (move.getLocation().equals(firstSquare) && move.getDestination().equals(game.getSelectedTile().get())) {
                         finalMove = move;
                         isValid = true;
                     }
                 }
-                if(!isValid){
+                if (!isValid) {
                     game.setSelectedTile(null);
                 }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            } catch (BrokenBarrierException e) {
+                game.getUpdateBarrier().reset();
             }
         }
 
         updateOverlay(game, movesFromFirstSquare, true);
         game.setSelectedTile(null);
+        game.getMoveBarrier().reset();
 
         return finalMove;
     }
@@ -101,13 +101,11 @@ public class Player {
     private void updateOverlay(Game game, List<String> movesFromFirstSquare, boolean clear){
         game.setUpdatingBoard(true);
         game.getActivity().runOnUiThread(() -> game.getActivity().updateOverlay(movesFromFirstSquare, clear));
-        synchronized (game) {
-            while(game.isUpdatingBoard()){
-                try {
-                    game.wait();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
+        while(game.isUpdatingBoard()){
+            try {
+                game.getUpdateBarrier().await();
+            } catch (BrokenBarrierException | InterruptedException e) {
+                throw new RuntimeException(e);
             }
         }
     }

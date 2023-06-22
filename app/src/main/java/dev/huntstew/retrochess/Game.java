@@ -7,6 +7,8 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.Optional;
 import java.util.Stack;
+import java.util.concurrent.BrokenBarrierException;
+import java.util.concurrent.CyclicBarrier;
 
 /**
  * Runnable game which handles the game logic and board state.
@@ -28,6 +30,10 @@ public class Game implements Runnable{
     private String selectedTile;
     /** whether the UI thread is currently being updated */
     private boolean updatingBoard;
+    /** a barrier that causes game to wait while move is being selected */
+    private final CyclicBarrier moveBarrier = new CyclicBarrier(2);
+    /** a barrier that causes game to wait while ui is updated */
+    private final CyclicBarrier updateBarrier = new CyclicBarrier(2);
 
     /**
      * Returns the created game runnable, which ought to be passed into a thread. Uses the activity to update the UI.
@@ -104,6 +110,7 @@ public class Game implements Runnable{
         Player curPlayer = player1; /* White starts first */
         Player opponent = player2;
 
+        updateBoard();
         while (getWinner().isEmpty()) {
             if(takeTurn(curPlayer, opponent)){
                 setWinner(curPlayer);
@@ -112,8 +119,6 @@ public class Game implements Runnable{
             Player temp = opponent;
             opponent = curPlayer;
             curPlayer = temp;
-
-            updateBoard();
         }
 
         activity.runOnUiThread(() -> Toast.makeText(activity, "Winner is: " + getWinner(), Toast.LENGTH_LONG).show());
@@ -132,6 +137,7 @@ public class Game implements Runnable{
         move = curPlayer.getMove(this, moves);
         makeMove(move);
         board[move.getDestination().charAt(0) - 65][8 - (move.getDestination().charAt(1) - 48)].confirmMove(opponent, move.getDestination()); /* Confirmation to set certain properties which should not be set during "fake moves" */
+        updateBoard(move);
 
         // Win checking
         return getAllPossibleMoves(opponent, curPlayer).isEmpty();
@@ -497,16 +503,35 @@ public class Game implements Runnable{
      */
     public void updateBoard(){
         updatingBoard = true;
-        synchronized (this) {
-            activity.runOnUiThread(activity::updateBoard);
-            while (updatingBoard) {
-                try {
-                    wait();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
+        activity.runOnUiThread(activity::updateBoard);
+        while (updatingBoard) {
+            try {
+                getUpdateBarrier().await();
+            } catch (BrokenBarrierException e) {
+                getUpdateBarrier().reset();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
             }
         }
+        getUpdateBarrier().reset();
+    }
+
+    /**
+     * Pauses the current thread so the UI thread can update
+     */
+    public void updateBoard(Move move){
+        updatingBoard = true;
+        activity.runOnUiThread(() -> activity.updateBoard(move));
+        while (updatingBoard) {
+            try {
+                getUpdateBarrier().await();
+            } catch (BrokenBarrierException e) {
+                getUpdateBarrier().reset();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        getUpdateBarrier().reset();
     }
 
     /**
@@ -599,5 +624,21 @@ public class Game implements Runnable{
      */
     public boolean isUpdatingBoard() {
         return updatingBoard;
+    }
+
+    /**
+     * Gets the barrier that prevents game from continuing when a move is being selected
+     * @return the barrier
+     */
+    public CyclicBarrier getMoveBarrier() {
+        return moveBarrier;
+    }
+
+    /**
+     * Gets the barrier that prevents game from continuing when UI is updated
+     * @return the barrier
+     */
+    public CyclicBarrier getUpdateBarrier() {
+        return updateBarrier;
     }
 }
