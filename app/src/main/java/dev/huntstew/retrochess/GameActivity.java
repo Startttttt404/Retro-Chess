@@ -47,11 +47,10 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onClick(View v) {
-        if(game.getSelectedTile().isEmpty()) {
+        if(game.acceptingMove) {
             game.setSelectedTile(getResources().getResourceEntryName(v.getId()));
             try {
                 game.getMoveBarrier().await();
-                game.getMoveBarrier().reset();
             } catch (BrokenBarrierException | InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -59,32 +58,30 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     public void updateBoard(){
-        game.setUpdatingBoard(true);
-        Piece[][] board = game.getBoard();
-        for (int col = 0; col < board.length; col++) {
-            for (int row = 0; row < board[col].length; row++) {
-                updateTile(col, row);
+        if (game.isUpdatingBoard()) {
+            Piece[][] board = game.getBoard();
+            for (int col = 0; col < board.length; col++) {
+                for (int row = 0; row < board[col].length; row++) {
+                    updateTile(col, row);
+                }
             }
-        }
-        game.setUpdatingBoard(false);
-        try {
-            game.getUpdateBarrier().await();
-            game.getUpdateBarrier().reset();
-        } catch (BrokenBarrierException | InterruptedException e) {
-            throw new RuntimeException(e);
+            try {
+                game.getUpdateBarrier().await();
+            } catch (BrokenBarrierException | InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
-    public void updateBoard(Move move){
-        game.setUpdatingBoard(true);
-        updateTile(move.getLocationCol(), move.getLocationRow());
-        updateTile(move.getDestinationCol(), move.getDestinationRow());
-        game.setUpdatingBoard(false);
-        try {
-            game.getUpdateBarrier().await();
-            game.getUpdateBarrier().reset();
-        } catch (BrokenBarrierException | InterruptedException e) {
-            throw new RuntimeException(e);
+    public void updateBoard(Move move) {
+        if (game.isUpdatingBoard()) {
+            updateTile(move.getLocationCol(), move.getLocationRow());
+            updateTile(move.getDestinationCol(), move.getDestinationRow());
+            try {
+                game.getUpdateBarrier().await();
+            } catch (BrokenBarrierException | InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -93,6 +90,9 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
         ImageView tile = viewBoard[row][col];
         tile.setColorFilter(null);
         if (curTile.isPresent()) {
+            if (!curTile.get().isWhite()) {
+                tile.setColorFilter(new ColorMatrixColorFilter(NEGATIVE));
+            }
             switch (curTile.get().getType()) {
                 case PAWN:
                     tile.setImageResource(R.drawable.chess_plt45);
@@ -113,34 +113,30 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
                     tile.setImageResource(R.drawable.chess_rlt45);
                     break;
             }
-            if (!curTile.get().isWhite()) {
-                tile.setColorFilter(new ColorMatrixColorFilter(NEGATIVE));
-            }
         } else {
             tile.setImageDrawable(null);
         }
     }
 
     public void updateOverlay(List<String> tiles, boolean clear){
-        if(!clear){
-            for (String tileId : tiles) {
-                ImageView tile = getTileFromId(tileId);
-                tile.setForeground(new ColorDrawable(getResources().getColor(com.google.android.material.R.color.material_dynamic_neutral20)));
+        if(game.isUpdatingBoard()) {
+            if (!clear) {
+                for (String tileId : tiles) {
+                    ImageView tile = getTileFromId(tileId);
+                    tile.setForeground(new ColorDrawable(getResources().getColor(R.color.selection)));
+                }
+            } else {
+                for (String tileId : tiles) {
+                    ImageView tile = getTileFromId(tileId);
+                    tile.setForeground(null);
+                }
+            }
+            try {
+                game.getUpdateBarrier().await();
+            } catch (BrokenBarrierException | InterruptedException e) {
+                throw new RuntimeException(e);
             }
         }
-        else{
-            for (String tileId : tiles) {
-                ImageView tile = getTileFromId(tileId);
-                tile.setForeground(null);
-            }
-        }
-        game.setUpdatingBoard(false);
-        try {
-            game.getUpdateBarrier().await();
-        } catch (BrokenBarrierException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-        game.getUpdateBarrier().reset();
     }
 
     public ImageView getTileFromId(String tileId){

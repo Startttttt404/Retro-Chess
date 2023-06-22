@@ -34,6 +34,8 @@ public class Game implements Runnable{
     private final CyclicBarrier moveBarrier = new CyclicBarrier(2);
     /** a barrier that causes game to wait while ui is updated */
     private final CyclicBarrier updateBarrier = new CyclicBarrier(2);
+    private final CyclicBarrier overlayBarrier = new CyclicBarrier(2);
+    public boolean acceptingMove = false;
 
     /**
      * Returns the created game runnable, which ought to be passed into a thread. Uses the activity to update the UI.
@@ -503,17 +505,18 @@ public class Game implements Runnable{
      */
     public void updateBoard(){
         updatingBoard = true;
+        getUpdateBarrier().reset();
         activity.runOnUiThread(activity::updateBoard);
         while (updatingBoard) {
             try {
                 getUpdateBarrier().await();
+                updatingBoard = false;
             } catch (BrokenBarrierException e) {
-                getUpdateBarrier().reset();
+                throw new RuntimeException(e);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }
-        getUpdateBarrier().reset();
     }
 
     /**
@@ -521,17 +524,18 @@ public class Game implements Runnable{
      */
     public void updateBoard(Move move){
         updatingBoard = true;
+        getUpdateBarrier().reset();
         activity.runOnUiThread(() -> activity.updateBoard(move));
         while (updatingBoard) {
             try {
                 getUpdateBarrier().await();
+                updatingBoard = false;
             } catch (BrokenBarrierException e) {
-                getUpdateBarrier().reset();
+                throw new RuntimeException(e);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }
-        getUpdateBarrier().reset();
     }
 
     /**
@@ -630,7 +634,7 @@ public class Game implements Runnable{
      * Gets the barrier that prevents game from continuing when a move is being selected
      * @return the barrier
      */
-    public CyclicBarrier getMoveBarrier() {
+    protected CyclicBarrier getMoveBarrier() {
         return moveBarrier;
     }
 
@@ -638,7 +642,11 @@ public class Game implements Runnable{
      * Gets the barrier that prevents game from continuing when UI is updated
      * @return the barrier
      */
-    public CyclicBarrier getUpdateBarrier() {
+    protected CyclicBarrier getUpdateBarrier() {
         return updateBarrier;
+    }
+
+    protected CyclicBarrier getOverlayBarrier(){
+        return overlayBarrier;
     }
 }
