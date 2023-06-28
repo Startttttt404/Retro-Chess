@@ -129,8 +129,6 @@ public class Game implements Runnable{
             Player temp = opponent;
             opponent = curPlayer;
             curPlayer = temp;
-
-            activity.runOnUiThread(() -> Toast.makeText(activity, String.valueOf(fiftyMoveCounter), Toast.LENGTH_LONG).show());
         }
 
         activity.runOnUiThread(() -> Toast.makeText(activity, "Winner is: " + getWinner().get(), Toast.LENGTH_LONG).show());
@@ -239,12 +237,13 @@ public class Game implements Runnable{
         }
 
         Set<PieceType> blackTypes = new HashSet<>();
-        boolean blackUnwinnable = true;
+        boolean blackUnwinnable = false;
         if(whiteUnwinnable){
+            blackUnwinnable = true;
             for(Piece piece: player2.getPieces()){
                 if(!getPossibleMoves(piece.getTile()).isEmpty()) {
                     PieceType type = piece.getType();
-                    if (whiteTypes.contains(type)) {
+                    if (blackTypes.contains(type)) {
                         blackUnwinnable = false;
                         break;
                     } else if (type == PieceType.QUEEN || type == PieceType.ROOK || type == PieceType.PAWN) {
@@ -266,7 +265,7 @@ public class Game implements Runnable{
             }
         }
 
-        return blackUnwinnable && whiteUnwinnable;
+        return blackUnwinnable;
     }
 
 
