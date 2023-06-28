@@ -22,14 +22,17 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
             0,     0,     0, 1.0f,   0  // alpha
     };
 
-    private final Game game = new Game(this, new Player(), new Player());
+    private Game game;
 
-    private final ImageView[][] viewBoard = new ImageView[game.getBoard().length][game.getBoard().length];
+    private ImageView[][] viewBoard;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_game);
+
+        game = new Game(this, new Player("Hunter"), new Player("Steve"));
+        viewBoard = new ImageView[game.getBoard().length][game.getBoard().length];
 
         TableLayout boardLayout = findViewById(R.id.boardLayout);
         for(int i = 0; i < boardLayout.getChildCount(); i++){
@@ -47,7 +50,7 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
 
     @Override
     public void onClick(View v) {
-        if(game.acceptingMove) {
+        if(game.isAcceptingMove()) {
             game.setSelectedTile(getResources().getResourceEntryName(v.getId()));
             try {
                 game.getMoveBarrier().await();
@@ -103,7 +106,8 @@ public class GameActivity extends AppCompatActivity implements View.OnClickListe
                 case QUEEN:
                     tile.setImageResource(R.drawable.chess_qlt45);
                     break;
-                case BISHOP:
+                case B_BISHOP:
+                case W_BISHOP:
                     tile.setImageResource(R.drawable.chess_blt45);
                     break;
                 case KNIGHT:

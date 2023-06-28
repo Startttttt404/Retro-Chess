@@ -1,15 +1,19 @@
 package dev.huntstew.retrochess;
 
+import androidx.annotation.NonNull;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.BrokenBarrierException;
 
 public class Player {
+    private String name;
     private List<Piece> pieces;
     private final boolean dummy;
 
-    public Player(){
+    public Player(String name){
+        this.name = name;
         this.dummy = false;
         this.pieces = new ArrayList<>();
     }
@@ -84,15 +88,13 @@ public class Player {
     }
 
     public void waitForSelection(Game game){
-        game.acceptingMove = true;
+        game.setAcceptingMove(true);
         game.getMoveBarrier().reset();
-        while(game.acceptingMove){
+        while(game.isAcceptingMove()){
             try {
                 game.getMoveBarrier().await();
-                game.acceptingMove = false;
-            } catch (BrokenBarrierException e) {
-                throw new RuntimeException(e);
-            } catch (InterruptedException e) {
+                game.setAcceptingMove(false);
+            } catch (BrokenBarrierException | InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }
@@ -106,10 +108,7 @@ public class Player {
             try {
                 game.getUpdateBarrier().await();
                 game.setUpdatingBoard(false);
-            }catch(InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-            catch(BrokenBarrierException e){
+            }catch(InterruptedException | BrokenBarrierException e) {
                 throw new RuntimeException(e);
             }
         }
@@ -121,5 +120,11 @@ public class Player {
 
     public boolean isDummy() {
         return dummy;
+    }
+
+    @NonNull
+    @Override
+    public String toString() {
+        return name;
     }
 }

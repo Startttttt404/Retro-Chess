@@ -33,10 +33,15 @@ public class Piece{
         return hasMoved;
     }
 
-    public void confirmMove(Player opponent, String destination){
+    public void confirmMove(Player opponent, String destination, Game game){
+        if(getType() == PieceType.PAWN){
+            game.resetFiftyMoveCounter();
+        }
+
         for(int i = 0; i < opponent.getPieces().size(); i++){
             if(opponent.getPieces().get(i).getTile().equals(destination)){
                 opponent.getPieces().remove(opponent.getPieces().get(i));
+                game.resetFiftyMoveCounter();
             }
         }
         hasMoved = true;

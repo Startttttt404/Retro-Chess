@@ -2,15 +2,17 @@ package dev.huntstew.retrochess;
 
 import android.widget.Toast;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.Optional;
 import java.util.Stack;
+import java.util.TreeSet;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
-/**
+/*
  * Runnable game which handles the game logic and board state.
  */
 public class Game implements Runnable{
@@ -24,6 +26,8 @@ public class Game implements Runnable{
     private Piece[][] board;
     /** a stack representing all previous states of the board */
     private final Stack<Piece[][]> boardStack = new Stack<>();
+    /** a hashmap assigning translated board states to number of appearances */
+    private final HashMap<String, Integer> threeFoldMap = new HashMap<>();
     /** the final winner of the game, empty until there is a winner */
     private Player winner;
     /** the "selected tile" connecting the UI thread to this thread */
@@ -34,8 +38,10 @@ public class Game implements Runnable{
     private final CyclicBarrier moveBarrier = new CyclicBarrier(2);
     /** a barrier that causes game to wait while ui is updated */
     private final CyclicBarrier updateBarrier = new CyclicBarrier(2);
-    private final CyclicBarrier overlayBarrier = new CyclicBarrier(2);
-    public boolean acceptingMove = false;
+    /** Whether or not the game thread is looking for move input */
+    private boolean acceptingMove = false;
+    /** Keeps track of the number of moves since something interesting happens (ie. piece capture or pawn movement), after 50 moves from both players, ends the game */
+    private int fiftyMoveCounter;
 
     /**
      * Returns the created game runnable, which ought to be passed into a thread. Uses the activity to update the UI.
@@ -62,10 +68,10 @@ public class Game implements Runnable{
         // Black pieces A8-H7
         board[0][0] = new Piece(PieceType.ROOK, false, "A8");
         board[1][0] = new Piece(PieceType.KNIGHT, false, "B8");
-        board[2][0] = new Piece(PieceType.BISHOP, false, "C8");
+        board[2][0] = new Piece(PieceType.W_BISHOP, false, "C8");
         board[3][0] = new Piece(PieceType.QUEEN, false, "D8");
         board[4][0] = new Piece(PieceType.KING, false, "E8");
-        board[5][0] = new Piece(PieceType.BISHOP, false, "F8");
+        board[5][0] = new Piece(PieceType.B_BISHOP, false, "F8");
         board[6][0] = new Piece(PieceType.KNIGHT, false, "G8");
         board[7][0] = new Piece(PieceType.ROOK, false, "H8");
 
@@ -80,10 +86,10 @@ public class Game implements Runnable{
 
         board[0][7] = new Piece(PieceType.ROOK, true, "A1");
         board[1][7] = new Piece(PieceType.KNIGHT, true, "B1");
-        board[2][7] = new Piece(PieceType.BISHOP, true, "C1");
+        board[2][7] = new Piece(PieceType.B_BISHOP, true, "C1");
         board[3][7] = new Piece(PieceType.QUEEN, true, "D1");
         board[4][7] = new Piece(PieceType.KING, true, "E1");
-        board[5][7] = new Piece(PieceType.BISHOP, true, "F1");
+        board[5][7] = new Piece(PieceType.W_BISHOP, true, "F1");
         board[6][7] = new Piece(PieceType.KNIGHT, true, "G1");
         board[7][7] = new Piece(PieceType.ROOK, true, "H1");
 
@@ -102,6 +108,8 @@ public class Game implements Runnable{
                 player1.getPieces().add(pieces[row]);
             }
         }
+
+        fiftyMoveCounter = 0;
     }
 
     /**
@@ -114,36 +122,153 @@ public class Game implements Runnable{
 
         updateBoard();
         while (getWinner().isEmpty()) {
-            if(takeTurn(curPlayer, opponent)){
-                setWinner(curPlayer);
-            }
+            fiftyMoveCounter++;
+            takeTurn(curPlayer, opponent);
+            setWinner(winCheck());
 
             Player temp = opponent;
             opponent = curPlayer;
             curPlayer = temp;
+
+            activity.runOnUiThread(() -> Toast.makeText(activity, String.valueOf(fiftyMoveCounter), Toast.LENGTH_LONG).show());
         }
 
-        activity.runOnUiThread(() -> Toast.makeText(activity, "Winner is: " + getWinner(), Toast.LENGTH_LONG).show());
+        activity.runOnUiThread(() -> Toast.makeText(activity, "Winner is: " + getWinner().get(), Toast.LENGTH_LONG).show());
     }
 
     /**
      * Goes through move selection and win checking for curPlayer, returns the winner, if it exists
      * @param curPlayer The player taking their turn
      * @param opponent The player not taking their turn
-     * @return True if curPlayer won, false otherwise
      */
-    public boolean takeTurn(Player curPlayer, Player opponent){
+    public void takeTurn(Player curPlayer, Player opponent){
         // Move selection
         Move move;
         Set<Move> moves = getAllPossibleMoves(curPlayer, opponent);
         move = curPlayer.getMove(this, moves);
         makeMove(move);
-        board[move.getDestination().charAt(0) - 65][8 - (move.getDestination().charAt(1) - 48)].confirmMove(opponent, move.getDestination()); /* Confirmation to set certain properties which should not be set during "fake moves" */
+        board[move.getDestination().charAt(0) - 65][8 - (move.getDestination().charAt(1) - 48)].confirmMove(opponent, move.getDestination(), this); /* Confirmation to set certain properties which should not be set during "fake moves" */
         updateBoard(move);
 
-        // Win checking
-        return getAllPossibleMoves(opponent, curPlayer).isEmpty();
+        moves = getAllPossibleMoves(curPlayer, opponent);
+        moves.addAll(getAllPossibleMoves(opponent, curPlayer));
+        String moveKey = moves.toString();
+        threeFoldMap.merge(moveKey, 1, Integer::sum);
     }
+
+    public Player winCheck(){
+        String whiteKingTile = "";
+        String blackKingTile = "";
+
+        for(Piece piece: player1.getPieces()){
+            if(piece.getType() == PieceType.KING){
+                whiteKingTile = piece.getTile();
+            }
+        }
+
+        for(Piece piece: player2.getPieces()){
+            if(piece.getType() == PieceType.KING){
+                blackKingTile = piece.getTile();
+            }
+        }
+
+        Set<Move> whiteMoves = getAllPossibleMoves(player1, player2);
+
+        if(whiteMoves.isEmpty()){
+            if(tileIsInCheckBy(whiteKingTile, player2)){
+                return player2;
+            }
+            else{
+                return new Player("Stalemate!");
+            }
+        }
+
+        Set<Move> blackMoves = getAllPossibleMoves(player2, player1);
+
+        if(blackMoves.isEmpty()){
+            if(tileIsInCheckBy(blackKingTile, player1)){
+                return player1;
+            }
+            else{
+                return new Player("Stalemate!");
+            }
+        }
+
+        whiteMoves.addAll(blackMoves);
+        Integer threeFoldValue = threeFoldMap.get(whiteMoves.toString());
+        if(threeFoldValue != null && threeFoldValue >= 3){
+            return new Player("Three Fold Repetition!");
+        }
+
+        if(isUnwinnable()){
+            return new Player("Unwinnable!");
+        }
+
+        if(fiftyMoveCounter >= 100){
+            return new Player("50-Move Rule!");
+        }
+
+        return new Player(true);
+    }
+
+    public boolean isUnwinnable(){
+        Set<PieceType> whiteTypes = new HashSet<>();
+        boolean whiteUnwinnable = true;
+        for(Piece piece: player1.getPieces()){
+            if(!getPossibleMoves(piece.getTile()).isEmpty()) {
+                PieceType type = piece.getType();
+                if (whiteTypes.contains(type)) {
+                    whiteUnwinnable = false;
+                    break;
+                } else if (type == PieceType.QUEEN || type == PieceType.ROOK || type == PieceType.PAWN) {
+                    whiteUnwinnable = false;
+                    break;
+                } else if (type == PieceType.B_BISHOP && whiteTypes.contains(PieceType.W_BISHOP)) {
+                    whiteUnwinnable = false;
+                    break;
+                } else if (type == PieceType.W_BISHOP && whiteTypes.contains(PieceType.B_BISHOP)) {
+                    whiteUnwinnable = false;
+                    break;
+                } else if (type == PieceType.KNIGHT && (whiteTypes.contains(PieceType.B_BISHOP) || whiteTypes.contains(PieceType.W_BISHOP))) {
+                    whiteUnwinnable = false;
+                    break;
+                } else {
+                    whiteTypes.add(type);
+                }
+            }
+        }
+
+        Set<PieceType> blackTypes = new HashSet<>();
+        boolean blackUnwinnable = true;
+        if(whiteUnwinnable){
+            for(Piece piece: player2.getPieces()){
+                if(!getPossibleMoves(piece.getTile()).isEmpty()) {
+                    PieceType type = piece.getType();
+                    if (whiteTypes.contains(type)) {
+                        blackUnwinnable = false;
+                        break;
+                    } else if (type == PieceType.QUEEN || type == PieceType.ROOK || type == PieceType.PAWN) {
+                        blackUnwinnable = false;
+                        break;
+                    } else if (type == PieceType.B_BISHOP && (blackTypes.contains(PieceType.W_BISHOP) || whiteTypes.contains(PieceType.W_BISHOP))) {
+                        blackUnwinnable = false;
+                        break;
+                    } else if (type == PieceType.W_BISHOP && (blackTypes.contains(PieceType.B_BISHOP) || whiteTypes.contains(PieceType.B_BISHOP))) {
+                        blackUnwinnable = false;
+                        break;
+                    } else if (type == PieceType.KNIGHT && (blackTypes.contains(PieceType.B_BISHOP) || blackTypes.contains(PieceType.W_BISHOP))) {
+                        blackUnwinnable = false;
+                        break;
+                    } else {
+                        blackTypes.add(type);
+                    }
+                }
+            }
+        }
+
+        return blackUnwinnable && whiteUnwinnable;
+    }
+
 
     /**
      * Gets a set of all possible moves for a given player.
@@ -152,7 +277,7 @@ public class Game implements Runnable{
      * @return moves a set of all moves, where all moves are of the form [location, destination]
      */
     public Set<Move> getAllPossibleMoves(Player player, Player opponent){
-        Set<Move> moves = new HashSet<>();
+        Set<Move> moves = new TreeSet<>();
         String kingTile = "";
 
         for(Piece piece: player.getPieces()){
@@ -197,7 +322,7 @@ public class Game implements Runnable{
         int col = tileId.charAt(0) - 'A';
         int row = 8 - (tileId.charAt(1) - '0');
 
-        Set<Move> moves = new HashSet<>();
+        Set<Move> moves = new TreeSet<>();
         Optional<Piece> piece = getPiece(col, row);
 
         if(piece.isPresent()){
@@ -212,7 +337,8 @@ public class Game implements Runnable{
                     moves.addAll(getDiagonals(col, row));
                     moves.addAll(getHorizontals(col, row));
                     break;
-                case BISHOP:
+                case W_BISHOP:
+                case B_BISHOP:
                     moves.addAll(getDiagonals(col, row));
                     break;
                 case KNIGHT:
@@ -263,7 +389,7 @@ public class Game implements Runnable{
      * @return a set of the tiles
      */
     public Set<Move> getPawnTiles(int col, int row){
-        Set<Move> tiles = new HashSet<>();
+        Set<Move> tiles = new TreeSet<>();
 
         Optional<Piece> piece = getPiece(col, row);
 
@@ -308,7 +434,7 @@ public class Game implements Runnable{
      * @return a set of the tiles
      */
     public Set<Move> getDiagonals(int col, int row){
-        Set<Move> tiles = new HashSet<>();
+        Set<Move> tiles = new TreeSet<>();
 
         // Directional sets for up/down left/right
         Set<Integer> leftAndRight = Set.of(1, -1);
@@ -347,7 +473,7 @@ public class Game implements Runnable{
      * @return a set of the tiles
      */
     public Set<Move> getHorizontals(int col, int row){
-        Set<Move> tiles = new HashSet<>();
+        Set<Move> tiles = new TreeSet<>();
 
         Set<Integer> negativeAndPositiveDirections = Set.of(1, -1);
 
@@ -396,7 +522,7 @@ public class Game implements Runnable{
      * @return a set of the tiles
      */
     public Set<Move> getKnightTiles(int col, int row){
-        Set<Move> tiles = new HashSet<>();
+        Set<Move> tiles = new TreeSet<>();
 
         // Directional sets for up/down left/right
         Set<Integer> leftAndRight = Set.of(1, -1);
@@ -442,7 +568,7 @@ public class Game implements Runnable{
      * @return a set of the tiles
      */
     public Set<Move> getKingTiles(int col, int row){
-        Set<Move> tiles = new HashSet<>();
+        Set<Move> tiles = new TreeSet<>();
 
         // Directional sets for up/down left/right
         Set<Integer> leftAndRight = Set.of(1, 0, -1);
@@ -502,6 +628,7 @@ public class Game implements Runnable{
 
     /**
      * Pauses the current thread so the UI thread can update
+     * Update the whole board
      */
     public void updateBoard(){
         updatingBoard = true;
@@ -511,16 +638,15 @@ public class Game implements Runnable{
             try {
                 getUpdateBarrier().await();
                 updatingBoard = false;
-            } catch (BrokenBarrierException e) {
-                throw new RuntimeException(e);
-            } catch (InterruptedException e) {
+            } catch (BrokenBarrierException | InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }
     }
 
     /**
-     * Pauses the current thread so the UI thread can update
+     * Pauses the current thread so the UI thread can update based on a Move
+     * @param move the move the board needs to update to
      */
     public void updateBoard(Move move){
         updatingBoard = true;
@@ -530,9 +656,7 @@ public class Game implements Runnable{
             try {
                 getUpdateBarrier().await();
                 updatingBoard = false;
-            } catch (BrokenBarrierException e) {
-                throw new RuntimeException(e);
-            } catch (InterruptedException e) {
+            } catch (BrokenBarrierException | InterruptedException e) {
                 throw new RuntimeException(e);
             }
         }
@@ -646,7 +770,19 @@ public class Game implements Runnable{
         return updateBarrier;
     }
 
-    protected CyclicBarrier getOverlayBarrier(){
-        return overlayBarrier;
+    /**
+     * Gets whether the game thread is currently accepting input
+     * @return true if accepting a move, false otherwise
+     */
+    public boolean isAcceptingMove() {
+        return acceptingMove;
+    }
+
+    public void setAcceptingMove(boolean acceptingMove) {
+        this.acceptingMove = acceptingMove;
+    }
+
+    public void resetFiftyMoveCounter(){
+        fiftyMoveCounter = 0;
     }
 }
