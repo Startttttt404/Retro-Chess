@@ -3,37 +3,20 @@ package dev.huntstew.retrochess;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.content.res.AppCompatResources;
 
-import android.graphics.ColorMatrixColorFilter;
-import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.ImageView;
-import android.widget.TableLayout;
-import android.widget.TableRow;
 import android.widget.TextView;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.BrokenBarrierException;
-
 public class GameActivity extends AppCompatActivity {
-    private GameFragment fragment;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_game);
-        fragment = (GameFragment)getSupportFragmentManager().findFragmentById(R.id.gameFragment);
-    }
 
-    public void updateBoard() {
-        fragment.updateBoard();
-    }
+        ((TextView)findViewById(R.id.Player1Text)).setText("Hunter");
+        ((TextView)findViewById(R.id.Player2Text)).setText("Ella");
 
-    public void updateBoard(Move move) {
-        fragment.updateBoard(move);
-    }
-
-    public void updateOverlay(List<String> tiles, boolean clear){
-        fragment.updateOverlay(tiles, clear);
+        ((ImageView)findViewById(R.id.Player1ImageView)).setImageDrawable(AppCompatResources.getDrawable(this, R.drawable.pawn));
+        ((ImageView)findViewById(R.id.Player2ImageView)).setImageDrawable(AppCompatResources.getDrawable(this, R.drawable.pawn));
     }
 }

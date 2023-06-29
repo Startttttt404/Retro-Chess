@@ -6,7 +6,9 @@ import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.lifecycle.ViewModelProvider;
 
 import android.view.LayoutInflater;
 import android.view.View;
@@ -33,6 +35,10 @@ public class GameFragment extends Fragment implements View.OnClickListener {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        game.getBoardState().observe(getViewLifecycleOwner(), boardState -> updateBoard());
+
+        game.getOverlayState().observe(getViewLifecycleOwner(), overlayState -> updateOverlay(overlayState.getTiles(), overlayState.isClearing()));
+
         TableLayout boardLayout = view.findViewById(R.id.boardLayout);
         for(int i = 0; i < boardLayout.getChildCount(); i++){
             TableRow row = (TableRow)boardLayout.getChildAt(i);
@@ -43,16 +49,20 @@ public class GameFragment extends Fragment implements View.OnClickListener {
             }
         }
 
-        Thread gameThread = new Thread(game);
-        gameThread.start();
+        if(savedInstanceState == null){
+            new Thread(game).start();
+        }
+        else{
+            dirtyUpdate();
+        }
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
 
-        game = new Game((GameActivity) getActivity(), new Player("Hunter"), new Player("Steve"));
-        viewBoard = new ImageView[game.getBoard().length][game.getBoard().length];
+        game = new ViewModelProvider(this).get(Game.class);
+        viewBoard = new ImageView[8][8];
 
         // Inflate the layout for this fragment
         return inflater.inflate(R.layout.fragment_game, container, false);
@@ -86,14 +96,11 @@ public class GameFragment extends Fragment implements View.OnClickListener {
         }
     }
 
-    public void updateBoard(Move move) {
-        if (game.isUpdatingBoard()) {
-            updateTile(move.getLocationCol(), move.getLocationRow());
-            updateTile(move.getDestinationCol(), move.getDestinationRow());
-            try {
-                game.getUpdateBarrier().await();
-            } catch (BrokenBarrierException | InterruptedException e) {
-                throw new RuntimeException(e);
+    public void dirtyUpdate(){
+        Piece[][] board = game.getBoard();
+        for (int col = 0; col < board.length; col++) {
+            for (int row = 0; row < board[col].length; row++) {
+                updateTile(col, row);
             }
         }
     }
@@ -133,11 +140,11 @@ public class GameFragment extends Fragment implements View.OnClickListener {
     }
 
     public void updateOverlay(List<String> tiles, boolean clear){
-        if(game.isUpdatingBoard()) {
+        if(game.isUpdatingOverlay()) {
             if (!clear) {
                 for (String tileId : tiles) {
                     ImageView tile = getTileFromId(tileId);
-                    tile.setForeground(new ColorDrawable(getResources().getColor(R.color.selection)));
+                    tile.setForeground(new ColorDrawable(ContextCompat.getColor(requireContext(), R.color.selection)));
                 }
             } else {
                 for (String tileId : tiles) {
@@ -146,7 +153,7 @@ public class GameFragment extends Fragment implements View.OnClickListener {
                 }
             }
             try {
-                game.getUpdateBarrier().await();
+                game.getOverlayBarrier().await();
             } catch (BrokenBarrierException | InterruptedException e) {
                 throw new RuntimeException(e);
             }

@@ -4,47 +4,65 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/light_tile"
     android:orientation="vertical"
     tools:context=".GameActivity">
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@id/Player2Layout"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:background="@drawable/light_tile"
         android:orientation="horizontal"
         app:layout_constraintBottom_toTopOf="@+id/gameFragment"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
-        <TextView
-            android:id="@+id/Player2Text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_vertical"
-            android:layout_weight="1"
-            android:gravity="right"
-            android:text="Player 2" />
-
         <ImageView
             android:id="@+id/Player2ImageView"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="32dp"
+            android:layout_marginBottom="32dp"
             android:adjustViewBounds="false"
+            android:background="@color/dark_tile"
+            android:contentDescription="Player2ImageView"
             android:cropToPadding="false"
-            android:scaleType="fitEnd"
+            android:scaleType="fitStart"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintDimensionRatio="h,1:1"
+            app:layout_constraintEnd_toStartOf="@+id/Player2Text"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:layout_conversion_absoluteHeight="175dp"
+            tools:layout_conversion_absoluteWidth="238dp"
             tools:srcCompat="@tools:sample/avatars" />
 
-    </LinearLayout>
+        <TextView
+            android:id="@+id/Player2Text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/pixel_nes"
+            android:gravity="center"
+            android:textColor="@color/black"
+            android:textSize="34sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/Player2ImageView"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:layout_conversion_absoluteHeight="40dp"
+            tools:layout_conversion_absoluteWidth="238dp"
+            tools:text="@tools:sample/first_names" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.fragment.app.FragmentContainerView
         android:id="@+id/gameFragment"
+        android:name="dev.huntstew.retrochess.GameFragment"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:name="dev.huntstew.retrochess.GameFragment"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
         app:layout_constraintBottom_toTopOf="@+id/Player1Layout"
         app:layout_constraintDimensionRatio="1:1"
         app:layout_constraintEnd_toEndOf="parent"
@@ -52,36 +70,48 @@
         app:layout_constraintTop_toBottomOf="@+id/Player2Layout"
         tools:layout="@layout/fragment_game" />
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/Player1Layout"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:background="@drawable/light_tile"
-        android:orientation="horizontal"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/gameFragment">
 
         <ImageView
-            android:id="@+id/player2ImageView"
-            android:layout_width="match_parent"
+            android:id="@+id/Player1ImageView"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_gravity="bottom"
-            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="32dp"
+            android:layout_marginBottom="32dp"
+            android:background="@color/light_tile"
+            android:contentDescription="Player1ImageView"
             android:cropToPadding="false"
             android:scaleType="fitStart"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintDimensionRatio="1:1"
+            app:layout_constraintEnd_toStartOf="@+id/Player1Text"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
             tools:srcCompat="@tools:sample/avatars" />
 
         <TextView
             android:id="@+id/Player1Text"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_gravity="start|center_vertical"
-            android:layout_weight="1"
-            android:foregroundGravity="center_vertical"
-            android:text="Player 1" />
+            android:fontFamily="@font/pixel_nes"
+            android:foregroundGravity="center"
+            android:gravity="center"
+            android:textColor="@color/black"
+            android:textSize="34sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toEndOf="@+id/Player1ImageView"
+            app:layout_constraintTop_toTopOf="parent"
+            tools:text="@tools:sample/first_names" />
 
-    </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

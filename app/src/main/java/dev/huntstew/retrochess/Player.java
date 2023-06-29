@@ -17,10 +17,7 @@ public class Player {
         this.dummy = false;
         this.pieces = new ArrayList<>();
     }
-    public Player(List<Piece> pieces){
-        this.dummy = false;
-        this.pieces = pieces;
-    }
+
     public Player(boolean dummy){
         if(dummy){
             this.dummy = true;
@@ -101,13 +98,13 @@ public class Player {
     }
 
     private void updateOverlay(Game game, List<String> movesFromFirstSquare, boolean clear){
-        game.setUpdatingBoard(true);
+        game.setUpdatingOverlay(true);
         game.getUpdateBarrier().reset();
-        game.getActivity().runOnUiThread(() -> game.getActivity().updateOverlay(movesFromFirstSquare, clear));
-        while(game.isUpdatingBoard()){
+        game.postOverlay(movesFromFirstSquare, clear);
+        while(game.isUpdatingOverlay()){
             try {
-                game.getUpdateBarrier().await();
-                game.setUpdatingBoard(false);
+                game.getOverlayBarrier().await();
+                game.setUpdatingOverlay(false);
             }catch(InterruptedException | BrokenBarrierException e) {
                 throw new RuntimeException(e);
             }

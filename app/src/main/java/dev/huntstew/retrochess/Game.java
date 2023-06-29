@@ -1,10 +1,14 @@
 package dev.huntstew.retrochess;
 
-import android.widget.Toast;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.MutableLiveData;
+import androidx.lifecycle.ViewModel;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.Optional;
 import java.util.Stack;
@@ -15,13 +19,11 @@ import java.util.concurrent.CyclicBarrier;
 /*
  * Runnable game which handles the game logic and board state.
  */
-public class Game implements Runnable{
-    /** UI activity */
-    private final GameActivity activity;
+public class Game extends ViewModel implements Runnable{
     /** first player, white */
-    private final Player player1;
+    private final Player player1 = new Player("Player 1");
     /** second player, black */
-    private final Player player2;
+    private final Player player2 = new Player("Player 2");
     /** game board, empties for clear spaces */
     private Piece[][] board;
     /** a stack representing all previous states of the board */
@@ -38,64 +40,28 @@ public class Game implements Runnable{
     private final CyclicBarrier moveBarrier = new CyclicBarrier(2);
     /** a barrier that causes game to wait while ui is updated */
     private final CyclicBarrier updateBarrier = new CyclicBarrier(2);
+
+    private final CyclicBarrier overlayBarrier = new CyclicBarrier(2);
     /** Whether or not the game thread is looking for move input */
     private boolean acceptingMove = false;
     /** Keeps track of the number of moves since something interesting happens (ie. piece capture or pawn movement), after 50 moves from both players, ends the game */
     private int fiftyMoveCounter;
 
+    private boolean updatingOverlay = false;
+
+    private final MutableLiveData<BoardState> boardState = new MutableLiveData<>(new BoardState());
+
+    private final MutableLiveData<OverlayState> overlayState = new MutableLiveData<>(new OverlayState(List.of(), false));
+
     /**
-     * Returns the created game runnable, which ought to be passed into a thread. Uses the activity to update the UI.
-     * White player always goes first
-     *
-     * @param activity a game activity whose UI is to be updated
-     * @param whitePlayer the white player, goes first
-     * @param blackPlayer the black player, goes second
+     * Begins the game logic, starting with "white" player, taking turns until a winner is declared.
      */
-    public Game(GameActivity activity, Player whitePlayer, Player blackPlayer){
-        this.activity = activity;
+    @Override
+    public void run() {
         winner = new Player(true);
         selectedTile = "None";
 
-        board = new Piece[8][8];
-
-        // "Clears" the board w/ empties
-        for(int i = 0; i < board.length; i++){
-            for(int j = 0; j < board[i].length; j++){
-                board[i][j] = new Piece(PieceType.DUMMY, false, null);
-            }
-        }
-
-        // Black pieces A8-H7
-        board[0][0] = new Piece(PieceType.ROOK, false, "A8");
-        board[1][0] = new Piece(PieceType.KNIGHT, false, "B8");
-        board[2][0] = new Piece(PieceType.W_BISHOP, false, "C8");
-        board[3][0] = new Piece(PieceType.QUEEN, false, "D8");
-        board[4][0] = new Piece(PieceType.KING, false, "E8");
-        board[5][0] = new Piece(PieceType.B_BISHOP, false, "F8");
-        board[6][0] = new Piece(PieceType.KNIGHT, false, "G8");
-        board[7][0] = new Piece(PieceType.ROOK, false, "H8");
-
-        for(int i = 0; i < board.length; i++){
-            board[i][1] = new Piece(PieceType.PAWN, false, (char)(i + 'A') + "7");
-        }
-
-        // White pieces A2-H1
-        for(int i = 0; i < board.length; i++){
-            board[i][6] = new Piece(PieceType.PAWN, true, (char)(i + 'A') + "2");
-        }
-
-        board[0][7] = new Piece(PieceType.ROOK, true, "A1");
-        board[1][7] = new Piece(PieceType.KNIGHT, true, "B1");
-        board[2][7] = new Piece(PieceType.B_BISHOP, true, "C1");
-        board[3][7] = new Piece(PieceType.QUEEN, true, "D1");
-        board[4][7] = new Piece(PieceType.KING, true, "E1");
-        board[5][7] = new Piece(PieceType.W_BISHOP, true, "F1");
-        board[6][7] = new Piece(PieceType.KNIGHT, true, "G1");
-        board[7][7] = new Piece(PieceType.ROOK, true, "H1");
-
-        // Pieces are added to Player classes. This is to create/use the tile ID from the context of a piece rather than board.
-        player1 = whitePlayer;
-        player2 = blackPlayer;
+        board = Objects.requireNonNull(boardState.getValue()).getBoard();
 
         for (Piece[] pieces : board) {
             for (int row = 0; row < 2; row++) {
@@ -110,13 +76,7 @@ public class Game implements Runnable{
         }
 
         fiftyMoveCounter = 0;
-    }
 
-    /**
-     * Begins the game logic, starting with "white" player, taking turns until a winner is declared.
-     */
-    @Override
-    public void run() {
         Player curPlayer = player1; /* White starts first */
         Player opponent = player2;
 
@@ -130,8 +90,6 @@ public class Game implements Runnable{
             opponent = curPlayer;
             curPlayer = temp;
         }
-
-        activity.runOnUiThread(() -> Toast.makeText(activity, "Winner is: " + getWinner().get(), Toast.LENGTH_LONG).show());
     }
 
     /**
@@ -146,7 +104,7 @@ public class Game implements Runnable{
         move = curPlayer.getMove(this, moves);
         makeMove(move);
         board[move.getDestination().charAt(0) - 65][8 - (move.getDestination().charAt(1) - 48)].confirmMove(opponent, move.getDestination(), this); /* Confirmation to set certain properties which should not be set during "fake moves" */
-        updateBoard(move);
+        updateBoard();
 
         moves = getAllPossibleMoves(curPlayer, opponent);
         moves.addAll(getAllPossibleMoves(opponent, curPlayer));
@@ -632,25 +590,7 @@ public class Game implements Runnable{
     public void updateBoard(){
         updatingBoard = true;
         getUpdateBarrier().reset();
-        activity.runOnUiThread(activity::updateBoard);
-        while (updatingBoard) {
-            try {
-                getUpdateBarrier().await();
-                updatingBoard = false;
-            } catch (BrokenBarrierException | InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
-    /**
-     * Pauses the current thread so the UI thread can update based on a Move
-     * @param move the move the board needs to update to
-     */
-    public void updateBoard(Move move){
-        updatingBoard = true;
-        getUpdateBarrier().reset();
-        activity.runOnUiThread(() -> activity.updateBoard(move));
+        boardState.postValue(new BoardState(board));
         while (updatingBoard) {
             try {
                 getUpdateBarrier().await();
@@ -683,14 +623,6 @@ public class Game implements Runnable{
      */
     public void setWinner(Player winner) {
         this.winner = winner;
-    }
-
-    /**
-     * Sets the board to updating to prevent game advancement during ui updates
-     * @param updatingBoard whether the board is updating or not
-     */
-    public void setUpdatingBoard(boolean updatingBoard) {
-        this.updatingBoard = updatingBoard;
     }
 
     /**
@@ -738,14 +670,6 @@ public class Game implements Runnable{
     }
 
     /**
-     * Gets the UI activity
-     * @return the activity
-     */
-    public GameActivity getActivity() {
-        return activity;
-    }
-
-    /**
      * Checks if the board is currently updating
      * @return true if the board is updating, false otherwise
      */
@@ -783,6 +707,30 @@ public class Game implements Runnable{
 
     public void resetFiftyMoveCounter(){
         fiftyMoveCounter = 0;
+    }
+
+    public MutableLiveData<BoardState> getBoardState() {
+        return boardState;
+    }
+
+    public MutableLiveData<OverlayState> getOverlayState() {
+        return overlayState;
+    }
+
+    public void postOverlay(List<String> movesFromFirstSquare, boolean clear){
+        overlayState.postValue(new OverlayState(movesFromFirstSquare, clear));
+    }
+
+    public boolean isUpdatingOverlay(){
+        return updatingOverlay;
+    }
+
+    public void setUpdatingOverlay(boolean updatingOverlay) {
+        this.updatingOverlay = updatingOverlay;
+    }
+
+    public CyclicBarrier getOverlayBarrier() {
+        return overlayBarrier;
     }
 
     public Player getPlayer1() {
