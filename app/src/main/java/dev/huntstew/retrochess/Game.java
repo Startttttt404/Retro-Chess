@@ -784,4 +784,12 @@ public class Game implements Runnable{
     public void resetFiftyMoveCounter(){
         fiftyMoveCounter = 0;
     }
+
+    public Player getPlayer1() {
+        return player1;
+    }
+
+    public Player getPlayer2() {
+        return player2;
+    }
 }
