@@ -1,6 +1,5 @@
 package dev.huntstew.retrochess;
 
-import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
@@ -547,6 +546,27 @@ public class Game extends ViewModel implements Runnable{
                     }
                 }
             }
+
+            if(!piece.get().hasMoved()){
+                if(getPiece(board.length - 1, row).isPresent()){
+                    Piece endRowPiece = getPiece(board.length - 1, row).get();
+                    if(endRowPiece.getType() == PieceType.ROOK && (endRowPiece.isWhite() == endRowPiece.isWhite()) && !endRowPiece.hasMoved()){
+                        if(getPiece(col + 1, row).isEmpty() && getPiece(col + 2, row).isEmpty()) {
+                            tiles.add(new Move(col, row, col + 2, row, MoveType.CASTLE));
+                        }
+                    }
+                }
+
+                if(getPiece(0, row).isPresent()){
+                    Piece startRowPiece = getPiece(0, row).get();
+                    if(startRowPiece.getType() == PieceType.ROOK && (startRowPiece.isWhite() == startRowPiece.isWhite()) && !startRowPiece.hasMoved()){
+                        if(getPiece(col - 1, row).isEmpty() && getPiece(col - 2, row).isEmpty() && getPiece(col - 3, row).isEmpty()) {
+                            tiles.add(new Move(col, row, col - 2, row, MoveType.CASTLE));
+                        }
+                    }
+
+                }
+            }
         }
 
         return tiles;
@@ -570,15 +590,33 @@ public class Game extends ViewModel implements Runnable{
             board = boardCopy;
 
             switch (move.getType()) {
+                case CASTLE:
+                    // Kingside castle
+                    if(move.getDestinationCol() > move.getLocationCol()){
+                        Piece castle = getPiece(board.length - 1, move.getLocationRow()).get();
+                        castle.setTile( (char) (move.getLocationCol() + 1 + 'A') + "" + (char)((8 - move.getLocationRow()) + '0'));
+                        board[move.getLocationCol() + 1][move.getLocationRow()] = board[board.length - 1][move.getLocationRow()];
+                        board[board.length - 1][move.getLocationRow()] = new Piece(PieceType.DUMMY, false, null);;
+                    }
+                    // Queenside castle
+                    else{
+                        Piece castle = getPiece(0, move.getLocationRow()).get();
+                        castle.setTile( (char) (move.getLocationCol() - 1 + 'A') + "" + (char)((8 - move.getLocationRow()) + '0'));
+                        board[move.getLocationCol() - 1][move.getLocationRow()] = board[0][move.getLocationRow()];
+                        board[0][move.getLocationRow()] = new Piece(PieceType.DUMMY, false, null);;
+                    }
+
+                    // "Swapping" the tiles
+                    piece.get().setTile(move.getDestination());
+                    board[move.getDestination().charAt(0) - 65][8 - (move.getDestination().charAt(1) - 48)] = board[move.getLocation().charAt(0) - 65][8 - (move.getLocation().charAt(1) - 48)];
+                    board[move.getLocation().charAt(0) - 65][8 - (move.getLocation().charAt(1) - 48)] = new Piece(PieceType.DUMMY, false, null);
+                    break;
                 case NORMAL:
                     // "Swapping" the tiles
                     piece.get().setTile(move.getDestination());
                     board[move.getDestination().charAt(0) - 65][8 - (move.getDestination().charAt(1) - 48)] = board[move.getLocation().charAt(0) - 65][8 - (move.getLocation().charAt(1) - 48)];
                     board[move.getLocation().charAt(0) - 65][8 - (move.getLocation().charAt(1) - 48)] = new Piece(PieceType.DUMMY, false, null);
                     break;
-                case CASTLE:
-                    break;
-                case PASSANTE:
             }
         }
     }

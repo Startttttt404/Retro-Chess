@@ -4,6 +4,6 @@
     <color name="white">#FFFFFFFF</color>
     <color name="selection">#90503000</color>
     <color name="dark_tile">#005800</color>
-    <color name="light_tile">#bcbcbc</color>
+    <color name="light_tile">#f0d0b0 </color>
     <color name="border">#503000</color>
 </resources>
