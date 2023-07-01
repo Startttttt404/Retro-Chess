@@ -1,4 +1,4 @@
-package dev.huntstew.retrochess;
+package dev.huntstew.retrochess.enums;
 
 /**
  * Simple enum for the different "types" of moves

@@ -2,6 +2,8 @@ package dev.huntstew.retrochess;
 
 import androidx.annotation.NonNull;
 
+import dev.huntstew.retrochess.enums.MoveType;
+
 /**
  * Represents a move that may or may not happen
  * A "move" is defined as a tile to another tile via some method, moveType

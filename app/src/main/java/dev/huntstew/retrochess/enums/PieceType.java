@@ -1,4 +1,4 @@
-package dev.huntstew.retrochess;
+package dev.huntstew.retrochess.enums;
 
 /**
  * Enum for all the different chess pieces

@@ -15,6 +15,11 @@ import java.util.TreeSet;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
+import dev.huntstew.retrochess.enums.MoveType;
+import dev.huntstew.retrochess.enums.PieceType;
+import dev.huntstew.retrochess.states.BoardState;
+import dev.huntstew.retrochess.states.OverlayState;
+
 /*
  * Runnable game which handles the game logic and board state.
  */
@@ -52,6 +57,8 @@ public class Game extends ViewModel implements Runnable{
 
     private final MutableLiveData<OverlayState> overlayState = new MutableLiveData<>(new OverlayState(List.of(), false));
 
+    private int turn;
+
     /**
      * Begins the game logic, starting with "white" player, taking turns until a winner is declared.
      */
@@ -75,6 +82,7 @@ public class Game extends ViewModel implements Runnable{
         }
 
         fiftyMoveCounter = 0;
+        turn = 0;
 
         Player curPlayer = player1; /* White starts first */
         Player opponent = player2;
@@ -88,6 +96,7 @@ public class Game extends ViewModel implements Runnable{
             Player temp = opponent;
             opponent = curPlayer;
             curPlayer = temp;
+            turn++;
         }
     }
 
@@ -102,7 +111,7 @@ public class Game extends ViewModel implements Runnable{
         Set<Move> moves = getAllPossibleMoves(curPlayer, opponent);
         move = curPlayer.getMove(this, moves);
         makeMove(move);
-        board[move.getDestination().charAt(0) - 65][8 - (move.getDestination().charAt(1) - 48)].confirmMove(opponent, move.getDestination(), this); /* Confirmation to set certain properties which should not be set during "fake moves" */
+        board[move.getDestination().charAt(0) - 65][8 - (move.getDestination().charAt(1) - 48)].confirmMove(opponent, move, this); /* Confirmation to set certain properties which should not be set during "fake moves" */
         updateBoard();
 
         moves = getAllPossibleMoves(curPlayer, opponent);
@@ -366,15 +375,27 @@ public class Game extends ViewModel implements Runnable{
                 }
             }
 
-            // Capture movement
-            if (tileIsInBounds(col + 1, row + sign) && getPiece(col + 1, row + sign).isPresent()){
+            // Normal Capture movements
+            if (tileIsInBounds(col + 1, row + sign) && getPiece(col + 1, row + sign).isPresent()){      /* Right Capture */
                 if(getPiece(col + 1, row + sign).get().isWhite() ^ piece.get().isWhite()){
                     tiles.add(new Move(col, row, col + 1, row + sign, MoveType.NORMAL));
                 }
             }
-            if (tileIsInBounds(col - 1, row + sign) && getPiece(col - 1, row + sign).isPresent()){
+            if (tileIsInBounds(col - 1, row + sign) && getPiece(col - 1, row + sign).isPresent()){      /* Left Capture */
                 if(getPiece(col - 1, row + sign).get().isWhite() ^ piece.get().isWhite()){
                     tiles.add(new Move(col, row, col - 1, row + sign, MoveType.NORMAL));
+                }
+            }
+
+            // En passante movements
+            if (tileIsInBounds(col + 1, row + sign) && tileIsInBounds(col + 1, row) && getPiece(col + 1, row).isPresent()){
+                if(getPiece(col + 1, row).get().isWhite() ^ piece.get().isWhite() && getPiece(col + 1, row).get().getTurnMoved().isPresent() && getPiece(col + 1, row).get().getTurnMoved().get() == turn - 1){
+                    tiles.add(new Move(col, row, col + 1, row + sign, MoveType.PASSANTE));
+                }
+            }
+            if (tileIsInBounds(col - 1, row + sign) && tileIsInBounds(col - 1, row) && getPiece(col - 1, row).isPresent()){
+                if(getPiece(col - 1, row).get().isWhite() ^ piece.get().isWhite() && getPiece(col - 1, row).get().getTurnMoved().isPresent() && getPiece(col - 1, row).get().getTurnMoved().get() == turn - 1){
+                    tiles.add(new Move(col, row, col - 1, row + sign, MoveType.PASSANTE));
                 }
             }
         }
@@ -547,7 +568,9 @@ public class Game extends ViewModel implements Runnable{
                 }
             }
 
+            // Castling
             if(!piece.get().hasMoved()){
+                // King side
                 if(getPiece(board.length - 1, row).isPresent()){
                     Piece endRowPiece = getPiece(board.length - 1, row).get();
                     if(endRowPiece.getType() == PieceType.ROOK && (endRowPiece.isWhite() == endRowPiece.isWhite()) && !endRowPiece.hasMoved()){
@@ -557,6 +580,7 @@ public class Game extends ViewModel implements Runnable{
                     }
                 }
 
+                // Queen side
                 if(getPiece(0, row).isPresent()){
                     Piece startRowPiece = getPiece(0, row).get();
                     if(startRowPiece.getType() == PieceType.ROOK && (startRowPiece.isWhite() == startRowPiece.isWhite()) && !startRowPiece.hasMoved()){
@@ -590,27 +614,44 @@ public class Game extends ViewModel implements Runnable{
             board = boardCopy;
 
             switch (move.getType()) {
+                case PASSANTE:
+                    if(getPiece(move.getDestinationCol(), move.getLocationRow()).isPresent()){
+                        board[move.getDestinationCol()][move.getLocationRow()] = new Piece(PieceType.DUMMY, false, null);
+
+                        piece.get().setTile(move.getDestination());
+                        board[move.getDestination().charAt(0) - 65][8 - (move.getDestination().charAt(1) - 48)] = board[move.getLocation().charAt(0) - 65][8 - (move.getLocation().charAt(1) - 48)];
+                        board[move.getLocation().charAt(0) - 65][8 - (move.getLocation().charAt(1) - 48)] = new Piece(PieceType.DUMMY, false, null);
+                        break;
+                    }
+                    else{
+                        // En passante should not occur if opponent pawn is not next to moving pawn
+                        throw new RuntimeException();
+                    }
                 case CASTLE:
                     // Kingside castle
-                    if(move.getDestinationCol() > move.getLocationCol()){
+                    if(getPiece(board.length - 1, move.getLocationRow()).isPresent() && move.getDestinationCol() > move.getLocationCol()){
                         Piece castle = getPiece(board.length - 1, move.getLocationRow()).get();
                         castle.setTile( (char) (move.getLocationCol() + 1 + 'A') + "" + (char)((8 - move.getLocationRow()) + '0'));
                         board[move.getLocationCol() + 1][move.getLocationRow()] = board[board.length - 1][move.getLocationRow()];
-                        board[board.length - 1][move.getLocationRow()] = new Piece(PieceType.DUMMY, false, null);;
+                        board[board.length - 1][move.getLocationRow()] = new Piece(PieceType.DUMMY, false, null);
                     }
                     // Queenside castle
-                    else{
+                    else if(getPiece(0, move.getLocationRow()).isPresent()){
                         Piece castle = getPiece(0, move.getLocationRow()).get();
                         castle.setTile( (char) (move.getLocationCol() - 1 + 'A') + "" + (char)((8 - move.getLocationRow()) + '0'));
                         board[move.getLocationCol() - 1][move.getLocationRow()] = board[0][move.getLocationRow()];
-                        board[0][move.getLocationRow()] = new Piece(PieceType.DUMMY, false, null);;
+                        board[0][move.getLocationRow()] = new Piece(PieceType.DUMMY, false, null);
+                    }
+                    else{
+                        // This should never happen, if castling is supposed to take place, castle should be in position
+                        throw new RuntimeException();
                     }
 
-                    // "Swapping" the tiles
                     piece.get().setTile(move.getDestination());
                     board[move.getDestination().charAt(0) - 65][8 - (move.getDestination().charAt(1) - 48)] = board[move.getLocation().charAt(0) - 65][8 - (move.getLocation().charAt(1) - 48)];
                     board[move.getLocation().charAt(0) - 65][8 - (move.getLocation().charAt(1) - 48)] = new Piece(PieceType.DUMMY, false, null);
                     break;
+
                 case NORMAL:
                     // "Swapping" the tiles
                     piece.get().setTile(move.getDestination());
@@ -777,5 +818,9 @@ public class Game extends ViewModel implements Runnable{
 
     public Player getPlayer2() {
         return player2;
+    }
+
+    public int getTurn() {
+        return turn;
     }
 }

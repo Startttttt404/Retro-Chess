@@ -1,8 +1,14 @@
 package dev.huntstew.retrochess;
 
+import java.util.Optional;
+
+import dev.huntstew.retrochess.enums.MoveType;
+import dev.huntstew.retrochess.enums.PieceType;
+
 public class Piece{
     private final PieceType type;
     private final boolean isWhite;
+    private int turnMoved;
     private boolean hasMoved;
     private String tile;
 
@@ -33,17 +39,36 @@ public class Piece{
         return hasMoved;
     }
 
-    public void confirmMove(Player opponent, String destination, Game game){
+    public Optional<Integer> getTurnMoved() {
+        if(turnMoved < 0){
+            return Optional.empty();
+        }
+        else{
+            return Optional.of(turnMoved);
+        }
+    }
+
+    public void confirmMove(Player opponent, Move move, Game game){
         if(getType() == PieceType.PAWN){
             game.resetFiftyMoveCounter();
         }
 
         for(int i = 0; i < opponent.getPieces().size(); i++){
-            if(opponent.getPieces().get(i).getTile().equals(destination)){
+            if(opponent.getPieces().get(i).getTile().equals(move.getDestination())){
                 opponent.getPieces().remove(opponent.getPieces().get(i));
                 game.resetFiftyMoveCounter();
             }
+            if(move.getType() == MoveType.PASSANTE){
+                if(opponent.getPieces().get(i).getTile().equals((char) (move.getDestinationCol() + 'A') + "" + (char)((8 - move.getDestinationRow()) + '0'))){
+                    opponent.getPieces().remove(opponent.getPieces().get(i));
+                    game.resetFiftyMoveCounter();
+                }
+            }
         }
-        hasMoved = true;
+
+        if(!hasMoved) {
+            hasMoved = true;
+            turnMoved = game.getTurn();
+        }
     }
 }

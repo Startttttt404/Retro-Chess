@@ -1,4 +1,7 @@
-package dev.huntstew.retrochess;
+package dev.huntstew.retrochess.states;
+
+import dev.huntstew.retrochess.Piece;
+import dev.huntstew.retrochess.enums.PieceType;
 
 public class BoardState {
     private final Piece[][] board;

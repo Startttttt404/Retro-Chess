@@ -1,4 +1,4 @@
-package dev.huntstew.retrochess;
+package dev.huntstew.retrochess.states;
 
 import java.util.List;
 
